@@ -9,38 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TrackRouteImport } from './routes/track'
 import { Route as PhonesRouteImport } from './routes/phones'
-import { Route as EstimateRouteImport } from './routes/estimate'
 import { Route as CompareRouteImport } from './routes/compare'
-import { Route as BookRouteImport } from './routes/book'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AccessoriesRouteImport } from './routes/accessories'
 import { Route as IndexRouteImport } from './routes/index'
 
-const TrackRoute = TrackRouteImport.update({
-  id: '/track',
-  path: '/track',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PhonesRoute = PhonesRouteImport.update({
   id: '/phones',
   path: '/phones',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EstimateRoute = EstimateRouteImport.update({
-  id: '/estimate',
-  path: '/estimate',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CompareRoute = CompareRouteImport.update({
   id: '/compare',
   path: '/compare',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BookRoute = BookRouteImport.update({
-  id: '/book',
-  path: '/book',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -63,86 +45,42 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accessories': typeof AccessoriesRoute
   '/admin': typeof AdminRoute
-  '/book': typeof BookRoute
   '/compare': typeof CompareRoute
-  '/estimate': typeof EstimateRoute
   '/phones': typeof PhonesRoute
-  '/track': typeof TrackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accessories': typeof AccessoriesRoute
   '/admin': typeof AdminRoute
-  '/book': typeof BookRoute
   '/compare': typeof CompareRoute
-  '/estimate': typeof EstimateRoute
   '/phones': typeof PhonesRoute
-  '/track': typeof TrackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accessories': typeof AccessoriesRoute
   '/admin': typeof AdminRoute
-  '/book': typeof BookRoute
   '/compare': typeof CompareRoute
-  '/estimate': typeof EstimateRoute
   '/phones': typeof PhonesRoute
-  '/track': typeof TrackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/accessories'
-    | '/admin'
-    | '/book'
-    | '/compare'
-    | '/estimate'
-    | '/phones'
-    | '/track'
+  fullPaths: '/' | '/accessories' | '/admin' | '/compare' | '/phones'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/accessories'
-    | '/admin'
-    | '/book'
-    | '/compare'
-    | '/estimate'
-    | '/phones'
-    | '/track'
-  id:
-    | '__root__'
-    | '/'
-    | '/accessories'
-    | '/admin'
-    | '/book'
-    | '/compare'
-    | '/estimate'
-    | '/phones'
-    | '/track'
+  to: '/' | '/accessories' | '/admin' | '/compare' | '/phones'
+  id: '__root__' | '/' | '/accessories' | '/admin' | '/compare' | '/phones'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccessoriesRoute: typeof AccessoriesRoute
   AdminRoute: typeof AdminRoute
-  BookRoute: typeof BookRoute
   CompareRoute: typeof CompareRoute
-  EstimateRoute: typeof EstimateRoute
   PhonesRoute: typeof PhonesRoute
-  TrackRoute: typeof TrackRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/track': {
-      id: '/track'
-      path: '/track'
-      fullPath: '/track'
-      preLoaderRoute: typeof TrackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/phones': {
       id: '/phones'
       path: '/phones'
@@ -150,25 +88,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PhonesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/estimate': {
-      id: '/estimate'
-      path: '/estimate'
-      fullPath: '/estimate'
-      preLoaderRoute: typeof EstimateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/compare': {
       id: '/compare'
       path: '/compare'
       fullPath: '/compare'
       preLoaderRoute: typeof CompareRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/book': {
-      id: '/book'
-      path: '/book'
-      fullPath: '/book'
-      preLoaderRoute: typeof BookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -199,11 +123,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccessoriesRoute: AccessoriesRoute,
   AdminRoute: AdminRoute,
-  BookRoute: BookRoute,
   CompareRoute: CompareRoute,
-  EstimateRoute: EstimateRoute,
   PhonesRoute: PhonesRoute,
-  TrackRoute: TrackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

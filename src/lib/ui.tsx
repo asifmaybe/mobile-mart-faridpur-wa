@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Inbox, Search, Wrench, CheckCircle2, PackageCheck, type LucideIcon } from "lucide-react";
-import type { JobStatus } from "./storage";
+import { Inbox, Search, CheckCircle2, PackageCheck, type LucideIcon } from "lucide-react";
+import type { PhoneStatus } from "./storage";
 
 // ===== Toast =====
 type Toast = { id: number; msg: string; type: "success" | "error" | "info" | "warning" };
@@ -62,35 +62,33 @@ export function Modal({ open, onClose, children, title }: { open: boolean; onClo
 }
 
 // ===== Status Badge =====
-const STATUS_META: Record<JobStatus, { label: string; bn: string; color: string; bg: string; dot: string }> = {
-  received:   { label: "Received",   bn: "রিসিভড",     color: "text-accent-blue",   bg: "bg-accent-blue/15 border-accent-blue/40",     dot: "bg-accent-blue" },
-  diagnosing: { label: "Diagnosing", bn: "ডায়াগনোসিস", color: "text-accent-yellow", bg: "bg-accent-yellow/15 border-accent-yellow/40", dot: "bg-accent-yellow" },
-  repairing:  { label: "In Repair",  bn: "রিপেয়ারিং",   color: "text-accent-orange", bg: "bg-accent-orange/15 border-accent-orange/40", dot: "bg-accent-orange" },
-  ready:      { label: "Ready",      bn: "তৈরি",        color: "text-accent-green",  bg: "bg-accent-green/15 border-accent-green/40",   dot: "bg-accent-green" },
-  delivered:  { label: "Delivered",  bn: "ডেলিভার্ড",   color: "text-text-muted",    bg: "bg-black/5 border-black/10",                  dot: "bg-text-muted" },
+const STATUS_META: Record<PhoneStatus, { label: string; bn: string; color: string; bg: string; dot: string }> = {
+  Draft:     { label: "Draft",     bn: "খসড়া",        color: "text-text-muted",    bg: "bg-black/5 border-black/10",                  dot: "bg-text-muted" },
+  Listed:    { label: "Listed",    bn: "তালিকাভুক্ত", color: "text-accent-blue",   bg: "bg-accent-blue/15 border-accent-blue/40",     dot: "bg-accent-blue" },
+  Reserved:  { label: "Reserved",  bn: "রিজার্ভড",    color: "text-accent-orange", bg: "bg-accent-orange/15 border-accent-orange/40", dot: "bg-accent-orange" },
+  Sold:      { label: "Sold",      bn: "বিক্রিত",     color: "text-accent-green",  bg: "bg-accent-green/15 border-accent-green/40",   dot: "bg-accent-green" },
 };
 
-export function StatusBadge({ status, lang = "en" }: { status: JobStatus; lang?: "en" | "bn" }) {
-  const m = STATUS_META[status];
+export function StatusBadge({ status, lang = "en" }: { status: PhoneStatus; lang?: "en" | "bn" }) {
+  const m = STATUS_META[status] || STATUS_META.Draft;
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold ${m.bg} ${m.color}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${m.dot} ${status === "ready" || status === "repairing" ? "pulse-dot" : ""}`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${m.dot} ${status === "Listed" ? "pulse-dot" : ""}`} />
       {lang === "bn" ? m.bn : m.label}
     </span>
   );
 }
 
-export const STATUSES: JobStatus[] = ["received", "diagnosing", "repairing", "ready", "delivered"];
-export const STATUS_ICONS: Record<JobStatus, LucideIcon> = {
-  received: Inbox,
-  diagnosing: Search,
-  repairing: Wrench,
-  ready: CheckCircle2,
-  delivered: PackageCheck,
+export const STATUSES: PhoneStatus[] = ["Draft", "Listed", "Reserved", "Sold"];
+export const STATUS_ICONS: Record<PhoneStatus, LucideIcon> = {
+  Draft: Inbox,
+  Listed: Search,
+  Reserved: PackageCheck,
+  Sold: CheckCircle2,
 };
 
-export function getStatusLabel(s: JobStatus, lang: "en" | "bn") {
-  return lang === "bn" ? STATUS_META[s].bn : STATUS_META[s].label;
+export function getStatusLabel(s: PhoneStatus, lang: "en" | "bn") {
+  return lang === "bn" ? (STATUS_META[s]?.bn || "") : (STATUS_META[s]?.label || "");
 }
 
 // ===== Stat Counter =====

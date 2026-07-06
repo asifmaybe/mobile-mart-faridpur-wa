@@ -1,37 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  LayoutDashboard, Plus, ClipboardList, Calendar as CalIcon, Settings as SettingsIcon,
-  LogOut, Menu, Lock, Printer, ArrowRight, Trash2, Bell,
-  Package, Users, TrendingUp, AlertTriangle, UserCog, Receipt as ReceiptIcon, ShoppingCart, Calculator,
+  LayoutDashboard, Plus, ClipboardList, Settings as SettingsIcon,
+  LogOut, Menu, Lock, Printer, ArrowRight, Trash2,
+  Package, TrendingUp, Receipt as ReceiptIcon, ShoppingCart,
   type LucideIcon,
 } from "lucide-react";
 import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
 import { useI18n } from "../lib/i18n";
 import {
-  addJob, addReceipt, calculateReceiptTotals, deleteAppointment, deleteJob,
-  generateReceiptNo, generateToken, getAppointments, getReceipts,
-  getJobs, getSettings, getTechnicianById, getTechnicians, isAuthed, saveSettings,
-  seedDemoData, setAuthed, updateJob,
-  type Appointment, type Job, type JobStatus, type Receipt, type ReceiptItem, type Settings,
+  addMemo, addReceipt, calculateReceiptTotals, getMemos, getSettings, saveSettings, isAuthed,
+  generateReceiptNo, seedDemoData, setAuthed, getPhones, getAccessories,
+  type Memo, type Receipt, type ReceiptItem, updateMemo, deleteMemo, generateToken
 } from "../lib/storage";
-import { Modal, STATUSES, StatusBadge, getStatusLabel, showToast } from "../lib/ui";
+import { showToast, Modal } from "../lib/ui";
 import { InventoryView } from "../components/admin/InventoryView";
-import { TechniciansView } from "../components/admin/TechniciansView";
-import { MarketPricesView, MarketPriceLookup } from "../components/admin/MarketPriceLookup";
+import { MarketPricesView } from "../components/admin/MarketPriceLookup";
 import { ReceiptMakerView } from "../components/admin/ReceiptMaker";
-import { ReceiptItemsPanel, ReceiptItemsList, ReceiptSummaryCard, emptyItem, openReceiptPrint, buildWhatsAppText } from "../components/admin/ReceiptItemsPanel";
+import { emptyItem, openReceiptPrint, buildWhatsAppText, ReceiptItemsList, ReceiptSummaryCard } from "../components/admin/ReceiptItemsPanel";
 import { BuySellView } from "../components/admin/BuySellView";
-import { EstimateRatesView } from "../components/admin/EstimateRatesView";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Admin — Mak Electronics" }] }),
+  head: () => ({ meta: [{ title: "Admin — Faridpur Mobile Mart" }] }),
   component: AdminPage,
 });
 
-type Tab = "dashboard" | "new" | "jobs" | "appointments" | "inventory" | "buysell" | "technicians" | "market" | "estimates" | "receipts" | "settings";
-
-
+type Tab = "dashboard" | "new" | "memos" | "inventory" | "buysell" | "market" | "receipts" | "settings";
 
 function AdminPage() {
   const { tr, lang } = useI18n();
@@ -43,7 +37,6 @@ function AdminPage() {
     setAuthedState(isAuthed());
     setHydrated(true);
   }, []);
-
 
   if (!hydrated) return null;
   if (!authed) return <LoginScreen onLogin={() => setAuthedState(true)} />;
@@ -103,18 +96,14 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
 
   const TABS: { id: Tab; Icon: LucideIcon; label: string }[] = [
     { id: "dashboard",    Icon: LayoutDashboard, label: tr("dashboard") },
-    { id: "new",          Icon: Plus,            label: tr("newJob") },
-    { id: "jobs",         Icon: ClipboardList,   label: tr("allJobs") },
-    { id: "appointments", Icon: CalIcon,         label: tr("appointments") },
+    { id: "new",          Icon: Plus,            label: tr("newMemo") },
+    { id: "memos",        Icon: ClipboardList,   label: tr("allMemos") },
     { id: "inventory",    Icon: Package,         label: tr("inventoryTitle") },
     { id: "buysell",      Icon: ShoppingCart,    label: tr("buySellTitle") },
-
     { id: "market",       Icon: TrendingUp,      label: tr("marketPriceTrackerTitle") },
-    { id: "estimates",    Icon: Calculator,      label: tr("estimateRatesTitle") },
     { id: "receipts",     Icon: ReceiptIcon,     label: tr("receiptMakerTitle") },
     { id: "settings",     Icon: SettingsIcon,    label: tr("settings") },
   ];
-
 
   const currentLabel = TABS.find((t) => t.id === tab)?.label ?? "";
 
@@ -145,7 +134,6 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
         </aside>
 
         <main className="flex-1 p-4 md:p-6 min-w-0">
-          {/* Mobile-only title bar with hamburger on the right */}
           <div className="md:hidden flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold">{currentLabel}</h1>
             <button className="glass-pill w-10 h-10 grid place-items-center" onClick={() => setNavOpen((o) => !o)} aria-label="Menu">
@@ -154,52 +142,63 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
           </div>
 
           {tab === "dashboard" && <Dashboard tr={tr} lang={lang} go={setTab} />}
-          {tab === "new" && <NewJob tr={tr} lang={lang} go={setTab} />}
-          {tab === "jobs" && <AllJobs tr={tr} lang={lang} />}
-          {tab === "appointments" && <Appointments tr={tr} lang={lang} go={setTab} />}
+          {tab === "new" && <NewMemo tr={tr} lang={lang} go={setTab} />}
+          {tab === "memos" && <AllMemos tr={tr} lang={lang} />}
           {tab === "inventory" && <InventoryView tr={tr} lang={lang} />}
           {tab === "buysell" && <BuySellView tr={tr} lang={lang} />}
-
           {tab === "market" && <MarketPricesView tr={tr} lang={lang} />}
-          {tab === "estimates" && <EstimateRatesView tr={tr} lang={lang} />}
           {tab === "receipts" && <ReceiptMakerView tr={tr} lang={lang} />}
           {tab === "settings" && <SettingsView tr={tr} lang={lang} />}
-
         </main>
       </div>
     </div>
   );
 }
 
-
-function useJobsState() {
-  const [jobs, setJobs] = useState<Job[]>([]);
+function useMemosState() {
+  const [memos, setMemos] = useState<Memo[]>([]);
   useEffect(() => {
-    const refresh = () => setJobs(getJobs());
+    const refresh = () => setMemos(getMemos());
     refresh();
     window.addEventListener("repairshop:change", refresh);
     return () => window.removeEventListener("repairshop:change", refresh);
   }, []);
-  return jobs;
+  return memos;
 }
 
 function Dashboard({ tr, go }: { tr: (k: any) => string; lang: "en" | "bn"; go: (t: Tab) => void }) {
-  const jobs = useJobsState();
+  const memos = useMemosState();
   const today = new Date().toISOString().slice(0, 10);
-  const thisMonth = new Date().toISOString().slice(0, 7);
+  
+  const [phonesAvailable, setPhonesAvailable] = useState(0);
+  const [phonesSold, setPhonesSold] = useState(0);
+  const [lowStockAcc, setLowStockAcc] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => {
+      const allPhones = getPhones();
+      setPhonesAvailable(allPhones.filter(p => p.status === "Listed").length);
+      setPhonesSold(allPhones.filter(p => p.status === "Sold").length);
+      setLowStockAcc(getAccessories().filter(a => a.stockQuantity <= 2 && a.status !== "Discontinued").length);
+    };
+    refresh();
+    window.addEventListener("repairshop:change", refresh);
+    return () => window.removeEventListener("repairshop:change", refresh);
+  }, []);
+
   const stats = {
-    today: jobs.filter((j) => j.receivedDate === today).length,
-    ready: jobs.filter((j) => j.status === "ready").length,
-    inProg: jobs.filter((j) => j.status === "diagnosing" || j.status === "repairing").length,
-    month: jobs.filter((j) => j.receivedDate.startsWith(thisMonth)).length,
+    memosToday: memos.filter((m) => m.date === today).length,
+    phonesAvailable,
+    phonesSold,
+    lowStockAcc
   };
-  const recent = jobs.slice(0, 10);
+  const recent = memos.slice(0, 10);
 
   const cards = [
-    { label: tr("jobsToday"), value: stats.today, color: "from-accent-blue/30 to-accent-blue/5" },
-    { label: tr("readyPickup"), value: stats.ready, color: "from-accent-green/30 to-accent-green/5" },
-    { label: tr("inProgress"), value: stats.inProg, color: "from-accent-orange/30 to-accent-orange/5" },
-    { label: tr("monthJobs"), value: stats.month, color: "from-accent-purple/30 to-accent-purple/5" },
+    { label: tr("memosToday"), value: stats.memosToday, color: "from-accent-blue/30 to-accent-blue/5" },
+    { label: tr("phonesAvailable"), value: stats.phonesAvailable, color: "from-accent-green/30 to-accent-green/5" },
+    { label: tr("phonesSold"), value: stats.phonesSold, color: "from-accent-purple/30 to-accent-purple/5" },
+    { label: tr("lowStockAcc"), value: stats.lowStockAcc, color: "from-accent-orange/30 to-accent-orange/5" },
   ];
 
   return (
@@ -216,23 +215,22 @@ function Dashboard({ tr, go }: { tr: (k: any) => string; lang: "en" | "bn"; go: 
 
       <div className="glass p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold">{tr("recentJobs")}</h2>
-          <button onClick={() => go("jobs")} className="text-xs text-accent-purple font-semibold inline-flex items-center gap-1">{tr("allJobs")} <ArrowRight size={12} /></button>
+          <h2 className="font-bold">{tr("recentMemos")}</h2>
+          <button onClick={() => go("memos")} className="text-xs text-accent-purple font-semibold inline-flex items-center gap-1">{tr("allMemos")} <ArrowRight size={12} /></button>
         </div>
         {recent.length === 0 ? (
-          <p className="text-text-muted text-sm py-6 text-center">{tr("noJobs")}</p>
+          <p className="text-text-muted text-sm py-6 text-center">{tr("noMemos")}</p>
         ) : (
           <div className="space-y-2">
-            {recent.map((j) => (
-              <div key={j.token} className="glass-soft p-3 flex items-center justify-between gap-3 flex-wrap">
+            {recent.map((m) => (
+              <div key={m.token} className="glass-soft p-3 flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-sm">{j.token}</span>
-                    <StatusBadge status={j.status} />
+                    <span className="font-bold text-sm">{m.token}</span>
                   </div>
-                  <div className="text-xs text-text-muted truncate mt-1">{j.customerName} • {j.device}</div>
+                  <div className="text-xs text-text-muted truncate mt-1">{m.customerName} • {m.device}</div>
                 </div>
-                <button onClick={() => go("jobs")} className="btn-glass !py-2 !px-3 text-xs">{tr("update")}</button>
+                <button onClick={() => go("memos")} className="btn-glass !py-2 !px-3 text-xs">{tr("update")}</button>
               </div>
             ))}
           </div>
@@ -242,17 +240,14 @@ function Dashboard({ tr, go }: { tr: (k: any) => string; lang: "en" | "bn"; go: 
   );
 }
 
-function NewJob({ tr, lang, go }: { tr: (k: any) => string; lang: "en" | "bn"; go: (t: Tab) => void }) {
+function NewMemo({ tr, lang, go }: { tr: (k: any) => string; lang: "en" | "bn"; go: (t: Tab) => void }) {
   const today = new Date().toISOString().slice(0, 10);
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  const [form, setForm] = useState<Job>({
-    token: "", customerName: "", customerPhone: "", device: "", issue: "",
-    receivedDate: today, estimatedDate: tomorrow, status: "received", techNote: "",
-    diagnosticNotes: "", assignedTechId: "", partsUsed: [],
+  const [form, setForm] = useState<Memo>({
+    token: "", customerName: "", customerPhone: "", device: "", note: "",
+    date: today,
     createdAt: new Date().toISOString(),
   });
-  const [created, setCreated] = useState<{ job: Job; receipt: Receipt | null } | null>(null);
-  const [lookup, setLookup] = useState(false);
+  const [created, setCreated] = useState<{ memo: Memo; receipt: Receipt | null } | null>(null);
 
   const [items, setItems] = useState<ReceiptItem[]>([emptyItem()]);
   const [discount, setDiscount] = useState(0);
@@ -260,20 +255,20 @@ function NewJob({ tr, lang, go }: { tr: (k: any) => string; lang: "en" | "bn"; g
   const [receiptNotes, setReceiptNotes] = useState("");
   const totals = useMemo(() => calculateReceiptTotals(items, discount, taxRate), [items, discount, taxRate]);
 
-  const setF = <K extends keyof Job>(k: K, v: Job[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const setF = <K extends keyof Memo>(k: K, v: Memo[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   const validate = () => {
-    if (!form.customerName.trim() || !form.customerPhone.trim() || !form.device.trim() || !form.issue.trim()) {
+    if (!form.customerName.trim() || !form.customerPhone.trim() || !form.device.trim()) {
       showToast(lang === "bn" ? "সব প্রয়োজনীয় ঘর পূরণ করুন" : "Fill all required fields", "error");
       return false;
     }
     return true;
   };
 
-  const createJobAndReceipt = (): { job: Job; receipt: Receipt | null } | null => {
+  const createMemoAndReceipt = (): { memo: Memo; receipt: Receipt | null } | null => {
     if (!validate()) return null;
-    const job: Job = { ...form, token: generateToken(), createdAt: new Date().toISOString() };
-    addJob(job);
+    const memo: Memo = { ...form, token: generateToken(), createdAt: new Date().toISOString() };
+    addMemo(memo);
     const hasItems = items.some((i) => i.description.trim());
     let receipt: Receipt | null = null;
     if (hasItems) {
@@ -281,50 +276,50 @@ function NewJob({ tr, lang, go }: { tr: (k: any) => string; lang: "en" | "bn"; g
       receipt = {
         id: receiptNo + "-" + Date.now(),
         receiptNo, date: today,
-        customerName: job.customerName, customerPhone: job.customerPhone,
-        device: job.device, jobToken: job.token,
+        customerName: memo.customerName, customerPhone: memo.customerPhone,
+        device: memo.device, jobToken: memo.token,
         items, ...totals, taxRate, notes: receiptNotes,
         createdAt: new Date().toISOString(),
       };
       addReceipt(receipt);
     }
-    return { job, receipt };
+    return { memo, receipt };
   };
 
-  const saveJob = () => {
-    const res = createJobAndReceipt();
+  const saveMemo = () => {
+    const res = createMemoAndReceipt();
     if (!res) return;
     setCreated(res);
-    showToast(tr("jobCreated"), "success");
-    setForm({ ...form, customerName: "", customerPhone: "", device: "", issue: "", diagnosticNotes: "" });
+    showToast(tr("memoCreated"), "success");
+    setForm({ ...form, customerName: "", customerPhone: "", device: "", note: "" });
     setItems([emptyItem()]);
     setDiscount(0); setTaxRate(0); setReceiptNotes("");
   };
 
   const printReceipt = () => {
     if (created?.receipt) openReceiptPrint(created.receipt);
-    else if (created?.job) printSlip(created.job);
+    else if (created?.memo) printSlip(created.memo);
   };
 
   const shareCreatedWhatsApp = () => {
     if (!created) return;
-    const phone = created.job.customerPhone.replace(/\D/g, "");
+    const phone = created.memo.customerPhone.replace(/\D/g, "");
     const text = created.receipt
       ? buildWhatsAppText(created.receipt)
-      : `Job ${created.job.token} created for ${created.job.customerName} — ${created.job.device}`;
+      : `Memo ${created.memo.token} created for ${created.memo.customerName} — ${created.memo.device}`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank");
   };
 
-  const printSlip = (job: Job) => {
+  const printSlip = (memo: Memo) => {
     const w = window.open("", "_blank", "width=400,height=600");
     if (!w) return;
-    w.document.write(`<html><head><title>${job.token}</title><style>body{font-family:monospace;padding:24px;text-align:center}h1{font-size:28px;margin:8px 0}p{margin:4px 0;font-size:14px}.box{border:2px dashed #000;padding:16px;display:inline-block;min-width:260px}</style></head><body><div class="box"><div style="font-size:11px;letter-spacing:2px">RAKIB TELECOM</div><h1>${job.token}</h1><p><b>${job.customerName}</b></p><p>${job.customerPhone}</p><p>${job.device}</p><p>${job.issue}</p><p style="margin-top:12px;font-size:11px">Received: ${job.receivedDate}</p><p style="font-size:11px">Est: ${job.estimatedDate}</p></div><script>window.print();<\/script></body></html>`);
+    w.document.write(`<html><head><title>${memo.token}</title><style>body{font-family:monospace;padding:24px;text-align:center}h1{font-size:28px;margin:8px 0}p{margin:4px 0;font-size:14px}.box{border:2px dashed #000;padding:16px;display:inline-block;min-width:260px}</style></head><body><div class="box"><div style="font-size:11px;letter-spacing:2px">FARIDPUR MOBILE MART</div><h1>${memo.token}</h1><p><b>${memo.customerName}</b></p><p>${memo.customerPhone}</p><p>${memo.device}</p><p>${memo.note}</p><p style="margin-top:12px;font-size:11px">Date: ${memo.date}</p></div><script>window.print();<\/script></body></html>`);
     w.document.close();
   };
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
-      <h1 className="hidden md:block text-2xl font-bold">{tr("newJob")}</h1>
+      <h1 className="hidden md:block text-2xl font-bold">{tr("newMemo")}</h1>
       <div className="grid lg:grid-cols-[1fr_340px] gap-4 items-start">
         <div className="glass p-6 space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
@@ -338,36 +333,16 @@ function NewJob({ tr, lang, go }: { tr: (k: any) => string; lang: "en" | "bn"; g
             </div>
           </div>
           <div>
-            <label className="label-caps mb-1.5 flex items-center justify-between">
-              <span>{tr("device")} *</span>
-              <button type="button" onClick={() => setLookup(true)} className="text-accent-purple inline-flex items-center gap-1 normal-case tracking-normal text-[11px]"><TrendingUp size={12} /> {tr("checkMarketPrice")}</button>
-            </label>
+            <label className="label-caps mb-1.5 block">{tr("device")} *</label>
             <input className="glass-input" value={form.device} onChange={(e) => setF("device", e.target.value)} placeholder="Samsung Galaxy A54" />
           </div>
           <div>
-            <label className="label-caps mb-1.5 block">{tr("issue")} *</label>
-            <textarea rows={2} className="glass-input resize-none" value={form.issue} onChange={(e) => setF("issue", e.target.value)} />
+            <label className="label-caps mb-1.5 block">{tr("notes")}</label>
+            <textarea rows={2} className="glass-input resize-none" value={form.note} onChange={(e) => setF("note", e.target.value)} />
           </div>
           <div>
-            <label className="label-caps mb-1.5 block">{tr("diagnosticNotes")}</label>
-            <textarea rows={3} className="glass-input resize-none" placeholder={tr("diagnosticNotesPlaceholder")} value={form.diagnosticNotes} onChange={(e) => setF("diagnosticNotes", e.target.value)} />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="label-caps mb-1.5 block">{tr("received")}</label>
-              <input type="date" className="glass-input" value={form.receivedDate} onChange={(e) => setF("receivedDate", e.target.value)} />
-            </div>
-            <div>
-              <label className="label-caps mb-1.5 block">{tr("estCompletion")}</label>
-              <input type="date" className="glass-input" value={form.estimatedDate} onChange={(e) => setF("estimatedDate", e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <label className="label-caps mb-1.5 block">{tr("status")}</label>
-            <select className="glass-input" value={form.status} onChange={(e) => setF("status", e.target.value as JobStatus)}>
-              <option value="received">{getStatusLabel("received", lang)}</option>
-              <option value="diagnosing">{getStatusLabel("diagnosing", lang)}</option>
-            </select>
+            <label className="label-caps mb-1.5 block">{tr("date")}</label>
+            <input type="date" className="glass-input" value={form.date} onChange={(e) => setF("date", e.target.value)} />
           </div>
 
           <ReceiptItemsList
@@ -381,20 +356,18 @@ function NewJob({ tr, lang, go }: { tr: (k: any) => string; lang: "en" | "bn"; g
           discount={discount} setDiscount={setDiscount}
           taxRate={taxRate} setTaxRate={setTaxRate}
           totals={totals}
-          onSaveAndPrint={saveJob}
+          onSaveAndPrint={saveMemo}
           hideWhatsApp
           tr={tr} lang={lang} sticky
         />
       </div>
 
-
       <Modal open={!!created} onClose={() => setCreated(null)} title={lang === "bn" ? "প্রিন্ট প্রিভিউ" : "Print Preview"}>
         <div>
           <div className="text-center mb-4">
-            
             <div className="label-caps">Token</div>
-            <div className="text-2xl font-extrabold tracking-tight my-1">{created?.job.token}</div>
-            <p className="text-sm text-text-secondary">{created?.job.customerName} • {created?.job.device}</p>
+            <div className="text-2xl font-extrabold tracking-tight my-1">{created?.memo.token}</div>
+            <p className="text-sm text-text-secondary">{created?.memo.customerName} • {created?.memo.device}</p>
           </div>
           {created?.receipt && (
             <div className="glass-soft p-3 text-sm space-y-1 mb-4 max-h-64 overflow-y-auto">
@@ -419,249 +392,89 @@ function NewJob({ tr, lang, go }: { tr: (k: any) => string; lang: "en" | "bn"; g
           </div>
         </div>
       </Modal>
-
-
-      {lookup && <MarketPriceLookup tr={tr} lang={lang} initialModel={form.device} onClose={() => setLookup(false)} />}
     </div>
   );
 }
 
-
-
-function AllJobs({ tr, lang }: { tr: (k: any) => string; lang: "en" | "bn" }) {
-  const jobs = useJobsState();
-  const settings = getSettings();
+function AllMemos({ tr, lang }: { tr: (k: any) => string; lang: "en" | "bn" }) {
+  const memos = useMemosState();
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"all" | JobStatus>("all");
-  const [editing, setEditing] = useState<Job | null>(null);
+  const [editing, setEditing] = useState<Memo | null>(null);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
-    return jobs.filter((j) => {
-      if (filter !== "all" && j.status !== filter) return false;
+    return memos.filter((m) => {
       if (!q) return true;
       const s = q.toLowerCase();
-      return j.token.toLowerCase().includes(s) || j.customerName.toLowerCase().includes(s) || j.customerPhone.includes(s) || j.device.toLowerCase().includes(s);
+      return m.token.toLowerCase().includes(s) || m.customerName.toLowerCase().includes(s) || m.customerPhone.includes(s) || m.device.toLowerCase().includes(s);
     });
-  }, [jobs, q, filter]);
-
-  const notify = (j: Job) => {
-    const url = settings.website;
-    const lines = [
-      `Hello ${j.customerName.split(" ")[0]}!`,
-      ``,
-      `Your device ${j.device} (Job Token: ${j.token}) is now ${getStatusLabel(j.status, "en").toUpperCase()}.`,
-      ``,
-      j.status === "ready" ? `✅ Your repair is COMPLETE and ready for pickup!\nVisit us: ${settings.hours}` :
-      j.status === "repairing" ? `🔧 We are currently repairing your device.\nEstimated completion: ${j.estimatedDate}` :
-      j.status === "delivered" ? `📦 Marked as delivered. Thank you for choosing us!` :
-      `📥 We've received your device and will update you shortly.`,
-      j.techNote ? `\nTech Note: ${j.techNote}` : "",
-      ``,
-      `Track: ${url}/track`,
-      ``,
-      `— ${settings.shopName} Team`,
-    ].join("\n");
-    const phone = j.customerPhone.replace(/\D/g, "");
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(lines)}`, "_blank");
-  };
+  }, [memos, q]);
 
   return (
     <div className="space-y-4">
-      <h1 className="hidden md:block text-2xl font-bold">{tr("allJobs")}</h1>
+      <h1 className="hidden md:block text-2xl font-bold">{tr("allMemos")}</h1>
       <input className="glass-input" placeholder={lang === "bn" ? "টোকেন, নাম, ফোন খুঁজুন..." : "Search token, name, phone, device..."} value={q} onChange={(e) => setQ(e.target.value)} />
-      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
-        {(["all", ...STATUSES] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`shrink-0 px-4 py-2 rounded-full text-xs font-semibold border transition ${
-              filter === s ? "bg-accent-purple/20 border-accent-purple/50 text-accent-purple" : "glass-pill"
-            }`}
-          >
-            {s === "all" ? (lang === "bn" ? "সব" : "All") : getStatusLabel(s, lang)}
-          </button>
-        ))}
-      </div>
 
       {filtered.length === 0 ? (
-        <div className="glass p-8 text-center text-text-muted text-sm">{tr("noJobs")}</div>
+        <div className="glass p-8 text-center text-text-muted text-sm">{tr("noMemos")}</div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((j) => {
-            const tech = j.assignedTechId ? getTechnicianById(j.assignedTechId) : null;
-            const diagPending = j.status === "diagnosing" && !j.diagnosticNotes.trim();
-            return (
-              <div key={j.token} className={`glass p-4 ${diagPending ? "ring-1 ring-accent-orange/50" : ""}`}>
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="glass-pill px-3 py-1 text-xs font-bold">{j.token}</span>
-                      <StatusBadge status={j.status} lang={lang} />
-                      {tech && (
-                        <span className="glass-pill px-2.5 py-1 text-[11px] inline-flex items-center gap-1"><UserCog size={11} /> {tech.name.split(" ")[0]}</span>
-                      )}
-                      {diagPending && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-semibold text-accent-orange bg-accent-orange/15 border-accent-orange/40">
-                          <AlertTriangle size={11} /> {tr("diagnosisPending")}
-                        </span>
-                      )}
-                    </div>
-                    <div className="font-semibold mt-2">{j.customerName}</div>
-                    <div className="text-xs text-text-muted">{j.customerPhone}</div>
-                    <div className="text-sm mt-2">{j.device}</div>
-                    <div className="text-xs text-text-muted">{j.issue}</div>
-                    {j.diagnosticNotes && <DiagPreview text={j.diagnosticNotes} label={tr("diagnosticNotes")} />}
-                    <div className="text-xs text-text-muted mt-1 inline-flex items-center gap-1"><CalIcon size={12} /> {j.receivedDate} → {j.estimatedDate}</div>
-                    {j.techNote && <div className="text-xs mt-2 glass-soft p-2">{j.techNote}</div>}
+          {filtered.map((m) => (
+            <div key={m.token} className="glass p-4">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="glass-pill px-3 py-1 text-xs font-bold">{m.token}</span>
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-4">
-                  <button onClick={() => setEditing(j)} className="btn-glass !py-2 !px-3 text-xs flex-1 sm:flex-none">{tr("update")}</button>
-                  <button onClick={() => notify(j)} className="btn-primary !py-2 !px-3 text-xs flex-1 sm:flex-none"><Bell size={12} /> {tr("notify")}</button>
-                  {(() => {
-                    const rec = getReceipts().find((r) => r.jobToken === j.token);
-                    if (!rec) return null;
-                    return (
-                      <button onClick={() => openReceiptPrint(rec)} className="btn-glass !py-2 !px-3 text-xs flex-1 sm:flex-none"><ReceiptIcon size={12} /> {lang === "bn" ? "রসিদ দেখুন" : "View Receipt"}</button>
-                    );
-                  })()}
-                  <button onClick={() => setConfirmDel(j.token)} className="btn-danger !py-2 !px-3 text-xs"><Trash2 size={14} /></button>
+                  <div className="font-semibold mt-2">{m.customerName}</div>
+                  <div className="text-xs text-text-muted">{m.customerPhone}</div>
+                  <div className="text-sm mt-2">{m.device}</div>
+                  <div className="text-xs text-text-muted">{m.note}</div>
+                  <div className="text-xs text-text-muted mt-1 inline-flex items-center gap-1"><span className="label-caps">Date: </span> {m.date}</div>
                 </div>
               </div>
-            );
-          })}
+              <div className="flex flex-wrap gap-2 mt-4">
+                <button onClick={() => setEditing(m)} className="btn-glass !py-2 !px-3 text-xs flex-1 sm:flex-none">{tr("update")}</button>
+                <button onClick={() => setConfirmDel(m.token)} className="btn-danger !py-2 !px-3 text-xs"><Trash2 size={14} /></button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-
-      {editing && <UpdateModal job={editing} onClose={() => setEditing(null)} tr={tr} lang={lang} />}
+      {editing && <UpdateMemoModal memo={editing} onClose={() => setEditing(null)} tr={tr} lang={lang} />}
       <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title={tr("confirmDelete")}>
         <div className="flex gap-2 mt-4">
           <button onClick={() => setConfirmDel(null)} className="btn-glass flex-1">{lang === "bn" ? "বাতিল" : "Cancel"}</button>
-          <button onClick={() => { if (confirmDel) { deleteJob(confirmDel); showToast(tr("delete") + " ✓", "info"); } setConfirmDel(null); }} className="btn-danger flex-1">{tr("delete")}</button>
+          <button onClick={() => { if (confirmDel) { deleteMemo(confirmDel); showToast(tr("delete") + " ✓", "info"); } setConfirmDel(null); }} className="btn-danger flex-1">{tr("delete")}</button>
         </div>
       </Modal>
     </div>
   );
 }
 
-function DiagPreview({ text, label }: { text: string; label: string }) {
-  const [open, setOpen] = useState(false);
-  const truncated = text.length > 90 && !open ? text.slice(0, 90) + "…" : text;
+function UpdateMemoModal({ memo, onClose, tr, lang }: { memo: Memo; onClose: () => void; tr: (k: any) => string; lang: "en" | "bn" }) {
+  const [note, setNote] = useState(memo.note);
   return (
-    <button type="button" onClick={() => setOpen((o) => !o)} className="text-xs mt-2 glass-soft p-2 text-left w-full block hover:bg-white/30 transition">
-      <span className="label-caps text-[10px]">{label}</span>
-      <span className="block mt-0.5 text-text-secondary">{truncated}</span>
-    </button>
-  );
-}
-
-function UpdateModal({ job, onClose, tr, lang }: { job: Job; onClose: () => void; tr: (k: any) => string; lang: "en" | "bn" }) {
-  const [status, setStatus] = useState<JobStatus>(job.status);
-  const [note, setNote] = useState(job.techNote);
-  const [diagnosticNotes, setDiagnosticNotes] = useState(job.diagnosticNotes);
-  const [assignedTechId, setAssignedTechId] = useState(job.assignedTechId);
-  const techs = getTechnicians().filter((t) => t.active || t.techId === job.assignedTechId);
-  return (
-    <Modal open onClose={onClose} title={`${tr("update")} • ${job.token}`}>
+    <Modal open onClose={onClose} title={`${tr("update")} • ${memo.token}`}>
       <div className="space-y-3">
         <div>
-          <label className="label-caps mb-1.5 block">{tr("status")}</label>
-          <select className="glass-input" value={status} onChange={(e) => setStatus(e.target.value as JobStatus)}>
-            {STATUSES.map((s) => <option key={s} value={s}>{getStatusLabel(s, lang)}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="label-caps mb-1.5 block">{tr("reassignTechnician")}</label>
-          <select className="glass-input" value={assignedTechId} onChange={(e) => setAssignedTechId(e.target.value)}>
-            <option value="">{tr("unassigned")}</option>
-            {techs.map((t) => <option key={t.techId} value={t.techId}>{t.name}{!t.active ? ` (${tr("inactive")})` : ""}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="label-caps mb-1.5 block">{tr("diagnosticNotes")}</label>
-          <textarea rows={3} className="glass-input resize-none" placeholder={tr("diagnosticNotesPlaceholder")} value={diagnosticNotes} onChange={(e) => setDiagnosticNotes(e.target.value)} />
-        </div>
-        <div>
-          <label className="label-caps mb-1.5 block">{tr("techNote")} <span className="text-text-muted normal-case tracking-normal">({lang === "bn" ? "কাস্টমারকে পাঠানো হবে" : "sent to customer"})</span></label>
+          <label className="label-caps mb-1.5 block">{tr("notes")}</label>
           <textarea rows={3} className="glass-input resize-none" value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
         <div className="flex gap-2 pt-2">
           <button onClick={onClose} className="btn-glass flex-1">{lang === "bn" ? "বাতিল" : "Cancel"}</button>
-          <button onClick={() => { updateJob(job.token, { status, techNote: note, diagnosticNotes, assignedTechId }); showToast(tr("saved")); onClose(); }} className="btn-primary flex-1">{tr("save")}</button>
+          <button onClick={() => { updateMemo(memo.token, { note }); showToast(tr("saved")); onClose(); }} className="btn-primary flex-1">{tr("save")}</button>
         </div>
       </div>
     </Modal>
   );
 }
 
-function Appointments({ tr, lang, go }: { tr: (k: any) => string; lang: "en" | "bn"; go: (t: Tab) => void }) {
-  const [appts, setAppts] = useState<Appointment[]>([]);
-  useEffect(() => {
-    const r = () => setAppts(getAppointments());
-    r(); window.addEventListener("repairshop:change", r);
-    return () => window.removeEventListener("repairshop:change", r);
-  }, []);
-
-  const convert = (a: Appointment) => {
-    // Prefill: create a job draft from appointment
-    const job: Job = {
-      token: generateToken(),
-      customerName: a.customerName,
-      customerPhone: a.customerPhone,
-      device: `${a.brand} ${a.model}`.trim(),
-      issue: a.problem + (a.notes ? ` — ${a.notes}` : ""),
-      receivedDate: new Date().toISOString().slice(0, 10),
-      estimatedDate: a.preferredDate || new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-      status: "received",
-      techNote: "",
-      diagnosticNotes: "",
-      assignedTechId: "",
-      partsUsed: [],
-      createdAt: new Date().toISOString(),
-    };
-    addJob(job);
-    deleteAppointment(a.ref);
-    showToast(`${tr("jobCreated")} ${job.token}`);
-    go("jobs");
-  };
-
-
-  return (
-    <div className="space-y-4">
-      <h1 className="hidden md:block text-2xl font-bold">{tr("appointments")}</h1>
-      {appts.length === 0 ? (
-        <div className="glass p-8 text-center text-text-muted text-sm">{tr("noAppts")}</div>
-      ) : (
-        <div className="space-y-3">
-          {appts.map((a) => (
-            <div key={a.ref} className="glass p-4">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="glass-pill px-3 py-1 text-xs font-bold">{a.ref}</span>
-                <span className="text-xs text-text-muted inline-flex items-center gap-1"><CalIcon size={12} /> {a.preferredDate}</span>
-              </div>
-              <div className="font-semibold mt-2">{a.customerName}</div>
-              <div className="text-xs text-text-muted">{a.customerPhone}</div>
-              <div className="text-sm mt-2">{a.brand} {a.model} — {a.problem}</div>
-              {a.notes && <div className="text-xs text-text-muted mt-1">{a.notes}</div>}
-              <div className="flex gap-2 mt-4 flex-wrap">
-                <button onClick={() => convert(a)} className="btn-primary !py-2 !px-3 text-xs flex-1 sm:flex-none">{tr("convert")} <ArrowRight size={12} /></button>
-                <a href={`https://wa.me/${a.customerPhone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="btn-glass !py-2 !px-3 text-xs flex-1 sm:flex-none inline-flex items-center gap-1"><WhatsAppIcon size={14} color="#25D366" /> WhatsApp</a>
-                <button onClick={() => { deleteAppointment(a.ref); showToast(tr("delete") + " ✓", "info"); }} className="btn-danger !py-2 !px-3 text-xs"><Trash2 size={14} /></button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function SettingsView({ tr, lang }: { tr: (k: any) => string; lang: "en" | "bn" }) {
-  const [s, setS] = useState<Settings>(getSettings());
+  const [s, setS] = useState(getSettings());
   const [newPass, setNewPass] = useState("");
-  const setF = (k: keyof Settings, v: string) => setS((x) => ({ ...x, [k]: v }));
+  const setF = (k: keyof ReturnType<typeof getSettings>, v: string) => setS((x) => ({ ...x, [k]: v }));
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();

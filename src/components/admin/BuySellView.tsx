@@ -3,7 +3,7 @@ import {
   Plus, Pencil, Trash2, Search, ShoppingCart, Smartphone, Headphones,
   Package, Coins, TrendingUp, AlertTriangle, X,
 } from "lucide-react";
-import { Modal, showToast } from "../../lib/ui";
+import { Modal, showToast, StatusBadge } from "../../lib/ui";
 import {
   ACCESSORY_CATEGORIES, deleteAccessory, deletePhone, generateAccessoryId, generatePhoneId,
   getAccessories, getPhones, recomputeAccessoryStatus, upsertAccessory, upsertPhone,
@@ -14,7 +14,7 @@ import { bdt } from "../../lib/wa";
 
 const BRANDS = ["Samsung", "Apple", "Xiaomi", "Oppo", "Vivo", "Realme", "OnePlus", "Huawei", "Nokia", "Other"];
 const CONDITIONS: PhoneCondition[] = ["Excellent", "Good", "Fair"];
-const PHONE_STATUSES: PhoneStatus[] = ["Available", "Sold", "Reserved"];
+const PHONE_STATUSES: PhoneStatus[] = ["Draft", "Listed", "Reserved", "Sold"];
 const ACC_STATUSES: AccessoryStatus[] = ["In Stock", "Out of Stock", "Discontinued"];
 
 const todayISO = () => new Date().toISOString();
@@ -138,7 +138,7 @@ function PhonesAdmin({ tr, phones }: { tr: (k: any) => string; phones: UsedPhone
                         </div>
                       )}
                     </td>
-                    <td className="p-3"><StatusPill text={p.status} /></td>
+                    <td className="p-3"><StatusBadge status={p.status} /></td>
                     <td className="p-3 text-right whitespace-nowrap">
                       <PhoneRowActions phone={p} tr={tr} onEdit={() => setEdit(p)} onDelete={() => setConfirm(p)} />
                     </td>
@@ -157,7 +157,7 @@ function PhonesAdmin({ tr, phones }: { tr: (k: any) => string; phones: UsedPhone
                     <div className="font-bold text-sm">{p.brand} {p.model}</div>
                     <div className="text-[11px] text-text-muted">{p.id} · {p.storage} · {p.ram} · {p.batteryHealth}%</div>
                   </div>
-                  <StatusPill text={p.status} />
+                  <StatusBadge status={p.status} />
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <div>
@@ -213,10 +213,10 @@ function PhoneRowActions({ phone, tr, onEdit, onDelete }: { phone: UsedPhone; tr
   return (
     <div className="inline-flex items-center gap-1.5">
       {phone.status !== "Sold" && (
-        <button onClick={() => flip("Sold")} className="btn-glass !py-1.5 !px-2 text-[11px]">{tr("markSold")}</button>
+        <button onClick={() => flip("Sold")} className="btn-glass !py-1.5 !px-2 text-[11px]">{tr("markSold") || "Sold"}</button>
       )}
-      {phone.status === "Available" && (
-        <button onClick={() => flip("Reserved")} className="btn-glass !py-1.5 !px-2 text-[11px]">{tr("markReserved")}</button>
+      {phone.status === "Listed" && (
+        <button onClick={() => flip("Reserved")} className="btn-glass !py-1.5 !px-2 text-[11px]">{tr("markReserved") || "Reserve"}</button>
       )}
       <button onClick={onEdit} aria-label="Edit" className="w-8 h-8 rounded-lg grid place-items-center glass-pill"><Pencil size={14} /></button>
       <button onClick={onDelete} aria-label="Delete" className="w-8 h-8 rounded-lg grid place-items-center glass-pill text-accent-red"><Trash2 size={14} /></button>
@@ -231,8 +231,8 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
   const [p, setP] = useState<UsedPhone>(initial ?? {
     id: generatePhoneId(), brand: "Samsung", model: "", storage: "", ram: "",
     batteryHealth: 100, condition: "Good", purchasePrice: 0, sellingPrice: 0,
-    status: "Available", photoUrl: "", notes: "", dateAdded: todayISO(),
-    galleryUrls: [], shortDescription: "",
+    status: "Draft", photoUrl: "", notes: "", dateAdded: todayISO(),
+    galleryUrls: [], shortDescription: "", imei: "", soldDate: "", warrantyTerms: "",
   });
   const set = <K extends keyof UsedPhone>(k: K, v: UsedPhone[K]) => setP((s) => ({ ...s, [k]: v }));
 
@@ -256,6 +256,9 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
   return (
     <Modal open onClose={onClose} title={initial ? tr("editPhone") : tr("addPhone")}>
       <form onSubmit={submit} className="space-y-3">
+        <div className="mb-6 -mt-2">
+          <PhoneStepper status={p.status} />
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label={tr("brand") + " *"}>
             <select value={p.brand} onChange={(e) => set("brand", e.target.value)} className="glass-input">
@@ -286,13 +289,24 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
             <input type="number" min={0} value={p.sellingPrice} onChange={(e) => set("sellingPrice", Number(e.target.value))} className="glass-input" />
           </Field>
           <Field label={tr("statusLabel") || "Status"}>
-            <select value={p.status} onChange={(e) => set("status", e.target.value as PhoneStatus)} className="glass-input">
+            <select value={p.status} onChange={(e) => set("status", e.target.value as PhoneStatus)} className="glass-input font-semibold">
               {PHONE_STATUSES.map((s) => <option key={s}>{s}</option>)}
             </select>
           </Field>
           <Field label={tr("dateAdded") || "Date Added"}>
             <input type="date" value={p.dateAdded.slice(0, 10)} onChange={(e) => set("dateAdded", new Date(e.target.value).toISOString())} className="glass-input" />
           </Field>
+          <Field label="IMEI">
+            <input value={p.imei || ""} onChange={(e) => set("imei", e.target.value)} placeholder="15-digit IMEI" className="glass-input" />
+          </Field>
+          <Field label="Warranty Terms">
+            <input value={p.warrantyTerms || ""} onChange={(e) => set("warrantyTerms", e.target.value)} placeholder="e.g. 7 Days Replacement" className="glass-input" />
+          </Field>
+          {p.status === "Sold" && (
+            <Field label="Sold Date">
+              <input type="date" value={p.soldDate ? p.soldDate.slice(0, 10) : ""} onChange={(e) => set("soldDate", new Date(e.target.value).toISOString())} className="glass-input" />
+            </Field>
+          )}
         </div>
         <Field label={tr("photoUrl") || "Photo URL"}>
           <input value={p.photoUrl} onChange={(e) => set("photoUrl", e.target.value)} placeholder="https://..." className="glass-input" />
@@ -406,7 +420,7 @@ function AccessoriesAdmin({ tr, accs }: { tr: (k: any) => string; accs: Accessor
                     <td className="p-3">{a.category}</td>
                     <td className="p-3 text-right font-bold">{bdt(a.sellingPrice)}</td>
                     <td className="p-3 text-right">{a.stockQuantity}</td>
-                    <td className="p-3"><StatusPill text={a.status} /></td>
+                    <td className="p-3"><StatusBadge status={a.status as any} /></td>
                     <td className="p-3 text-right whitespace-nowrap">
                       <button onClick={() => setEdit(a)} aria-label="Edit" className="w-8 h-8 rounded-lg grid place-items-center glass-pill"><Pencil size={14} /></button>
                       <button onClick={() => setConfirm(a)} aria-label="Delete" className="w-8 h-8 rounded-lg grid place-items-center glass-pill text-accent-red ml-1"><Trash2 size={14} /></button>
@@ -425,7 +439,7 @@ function AccessoriesAdmin({ tr, accs }: { tr: (k: any) => string; accs: Accessor
                     <div className="font-bold text-sm">{a.name}</div>
                     <div className="text-[11px] text-text-muted">{a.id} · {a.category} · {a.brand}</div>
                   </div>
-                  <StatusPill text={a.status} />
+                  <StatusBadge status={a.status as any} />
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <div className="font-bold">{bdt(a.sellingPrice)} <span className="text-xs font-normal text-text-muted">· {a.stockQuantity} {tr("stockQty") || "qty"}</span></div>
@@ -540,9 +554,40 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function StatusPill({ text }: { text: string }) {
   const cls =
-    text === "Available" || text === "In Stock" ? "bg-accent-green/20 text-accent-green border-accent-green/40" :
+    text === "In Stock" ? "bg-accent-green/20 text-accent-green border-accent-green/40" :
     text === "Sold" || text === "Discontinued" ? "bg-text-muted/20 text-text-muted border-text-muted/30" :
-    text === "Reserved" ? "bg-accent-blue/20 text-accent-blue border-accent-blue/40" :
     "bg-accent-red/20 text-accent-red border-accent-red/40";
   return <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${cls}`}>{text}</span>;
+}
+
+function PhoneStepper({ status }: { status: PhoneStatus }) {
+  const STAGES: PhoneStatus[] = ["Draft", "Listed", "Reserved", "Sold"];
+  const currentIndex = STAGES.indexOf(status);
+  return (
+    <div className="relative pt-6 pb-2 px-2 flex justify-between">
+      <div className="absolute top-[34px] left-8 right-8 h-1 bg-black/10 -z-10 rounded-full" />
+      <div 
+        className="absolute top-[34px] left-8 h-1 bg-accent-purple -z-10 rounded-full transition-all duration-700" 
+        style={{ width: `calc(${(Math.max(currentIndex, 0) / (STAGES.length - 1)) * 100}% - ${currentIndex === 0 ? 0 : 32}px)` }} 
+      />
+      {STAGES.map((s, i) => {
+        const past = i <= currentIndex;
+        const current = i === currentIndex;
+        return (
+          <div key={s} className="flex flex-col items-center gap-1.5 w-16 relative">
+            <div className={`w-5 h-5 rounded-full grid place-items-center transition-all duration-500 ${
+              current ? "bg-accent-purple text-white shadow-[0_0_12px_rgba(124,111,232,0.5)] scale-125" :
+              past ? "bg-accent-purple text-white" :
+              "bg-white border-2 border-black/10 text-transparent"
+            }`}>
+              <div className="w-1.5 h-1.5 bg-current rounded-full" />
+            </div>
+            <div className={`text-[10px] font-bold ${current ? "text-accent-purple" : past ? "text-text-primary" : "text-text-muted"}`}>
+              {s}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }

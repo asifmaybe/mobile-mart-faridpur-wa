@@ -22,12 +22,8 @@ export function Navbar() {
 
   const links: { to: string; key: "home" | "services" | "getEstimateNav" | "phones" | "accessories" | "track" | "book" | "contact" }[] = [
     { to: "/", key: "home" },
-    { to: "/#services", key: "services" },
-    { to: "/estimate", key: "getEstimateNav" },
     { to: "/phones", key: "phones" },
     { to: "/accessories", key: "accessories" },
-    { to: "/track", key: "track" },
-    { to: "/book", key: "book" },
     { to: "/#contact", key: "contact" },
   ];
 
