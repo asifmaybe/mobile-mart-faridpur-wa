@@ -169,23 +169,26 @@ function PhonesPage() {
 }
 
 export function PhoneCard({
-  phone, tr, lang, onViewDetails, layoutIdPrefix,
+  phone, tr, lang, onViewDetails,
 }: {
   phone: UsedPhone;
   tr: (k: any) => string;
   lang: "en" | "bn";
   onViewDetails?: (p: UsedPhone, trigger: HTMLElement | null) => void;
-  layoutIdPrefix?: string;
+  layoutIdPrefix?: string; // kept for API compat, unused
 }) {
   const justIn = isJustIn(phone.dateAdded);
   const msg = `Hi! I'm interested in the ${phone.brand} ${phone.model} (${phone.storage}/${phone.ram}) listed for ${bdt(phone.sellingPrice)}. Is it still available?`;
   const reduceMotion = useReducedMotion();
-  const id = layoutIdPrefix ? `${layoutIdPrefix}-${phone.id}` : `phone-card-${phone.id}`;
   return (
     <motion.article
-      layoutId={reduceMotion ? undefined : id}
       className="glass overflow-hidden flex flex-col"
       style={{ borderRadius: 22 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-40px" }}
+      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+      whileHover={reduceMotion ? {} : { y: -3, transition: { type: "spring", stiffness: 500, damping: 30 } }}
     >
       <div className="relative aspect-[4/3] bg-white/30 rounded-2xl overflow-hidden m-3">
         <PhotoPlaceholder url={phone.photoUrl} alt={`${phone.brand} ${phone.model}`} />
@@ -211,17 +214,17 @@ export function PhoneCard({
           <a
             href={shopWhatsAppLink(msg)}
             target="_blank" rel="noreferrer"
-            className="btn-primary !min-h-[44px] basis-2/3 grow"
+            className="btn-primary !min-h-[44px] flex-1"
           >
-            <WhatsAppIcon size={16} color="#FFFFFF" /> {tr("whatsappToBuy")}
+            <WhatsAppIcon size={18} color="#FFFFFF" /> {tr("whatsappToBuy")}
           </a>
           <button
             type="button"
             onClick={(e) => onViewDetails?.(phone, e.currentTarget)}
-            className="btn-glass !min-h-[44px] basis-1/3 grow justify-center"
+            className="btn-glass !min-h-[44px] flex-1 justify-center"
             aria-label={tr("viewDetails")}
           >
-            <Eye size={16} /> <span className="hidden sm:inline">{tr("viewDetails")}</span>
+            <Eye size={18} /> <span>{tr("viewDetails")}</span>
           </button>
         </div>
       </div>

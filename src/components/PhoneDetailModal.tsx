@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { X, Flame } from "lucide-react";
+import { X, Flame, ChevronLeft, ChevronRight } from "lucide-react";
 import { useI18n } from "../lib/i18n";
 import { isJustIn, type UsedPhone } from "../lib/storage";
 import { bdt, shopWhatsAppLink } from "../lib/wa";
@@ -12,27 +12,28 @@ interface Props {
   phone: UsedPhone | null;
   open: boolean;
   onClose: () => void;
-  /** Triggering element to restore focus to on close. */
   returnFocusRef?: React.RefObject<HTMLElement | null>;
+  /** kept for API compatibility — no longer used for layoutId */
   layoutIdPrefix?: string;
 }
 
-export function PhoneDetailModal({ phone, open, onClose, returnFocusRef, layoutIdPrefix }: Props) {
+export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props) {
   const { tr } = useI18n();
   const reduceMotion = useReducedMotion();
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [activeImg, setActiveImg] = useState(0);
+  
 
   useEffect(() => { if (open) setActiveImg(0); }, [open, phone?.id]);
 
-  // Esc + focus trap + focus return
+  // Esc + focus trap + scroll lock
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const tId = setTimeout(() => closeBtnRef.current?.focus(), 50);
+    const tId = setTimeout(() => closeBtnRef.current?.focus(), 60);
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
@@ -59,9 +60,34 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef, layoutI
 
   if (typeof document === "undefined") return null;
 
-  const spring = reduceMotion
-    ? { duration: 0.18 }
-    : { type: "spring" as const, stiffness: 260, damping: 28 };
+  // iOS 26-style spring: critically damped, fast settle, no bounce
+  const panelSpring = reduceMotion
+    ? { duration: 0.15 }
+    : { type: "spring" as const, stiffness: 500, damping: 42, mass: 0.85 };
+
+  const scrimTransition = reduceMotion
+    ? { duration: 0.15 }
+    : { duration: 0.22, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] };
+
+  // Mobile: slides up from bottom. Desktop: scales up from center.
+  const panelVariants = {
+    hidden: reduceMotion
+      ? { opacity: 0 }
+      : {
+        opacity: 0,
+        y: typeof window !== "undefined" && window.innerWidth < 640 ? "100%" : 24,
+        scale: typeof window !== "undefined" && window.innerWidth < 640 ? 1 : 0.95,
+      },
+    visible: { opacity: 1, y: 0, scale: 1 },
+    exit: reduceMotion
+      ? { opacity: 0 }
+      : {
+        opacity: 0,
+        y: typeof window !== "undefined" && window.innerWidth < 640 ? "100%" : 16,
+        scale: typeof window !== "undefined" && window.innerWidth < 640 ? 1 : 0.97,
+        transition: { duration: 0.18, ease: [0.32, 0, 0.67, 0] as [number, number, number, number] },
+      },
+  };
 
   return createPortal(
     <AnimatePresence>
@@ -70,37 +96,42 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef, layoutI
           {/* Scrim */}
           <motion.div
             key="scrim"
-            className="fixed inset-0 z-[95] bg-[rgba(20,18,40,0.55)] backdrop-blur-md"
+            className="fixed inset-0 z-[95] bg-[rgba(14,12,32,0.50)] backdrop-blur-[18px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.22 }}
+            transition={scrimTransition}
             onClick={onClose}
+            aria-hidden="true"
           />
 
-          {/* Morphing panel */}
+          {/* Panel container */}
           <div className="fixed inset-0 z-[96] pointer-events-none flex sm:items-center items-end justify-center sm:p-6">
             <motion.div
-              layoutId={reduceMotion ? undefined : (layoutIdPrefix ? `${layoutIdPrefix}-${phone.id}` : `phone-card-${phone.id}`)}
               ref={panelRef}
+              key={`modal-${phone.id}`}
               role="dialog"
               aria-modal="true"
               aria-labelledby={`phone-detail-title-${phone.id}`}
-              className="glass pointer-events-auto w-full sm:max-w-[680px] max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col"
+              className="pointer-events-auto w-full sm:max-w-[680px] max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col rounded-t-[26px] sm:rounded-[26px]"
               style={{
-                borderTopLeftRadius: 26,
-                borderTopRightRadius: 26,
-                borderBottomLeftRadius: typeof window !== "undefined" && window.innerWidth < 640 ? 0 : 26,
-                borderBottomRightRadius: typeof window !== "undefined" && window.innerWidth < 640 ? 0 : 26,
+                background: "rgba(255,255,255,0.72)",
+                backdropFilter: "blur(40px) saturate(200%)",
+                WebkitBackdropFilter: "blur(40px) saturate(200%)",
+                border: "1px solid rgba(255,255,255,0.88)",
+                borderTop: "1px solid rgba(255,255,255,0.98)",
+                boxShadow: "0 32px 80px rgba(30,20,80,0.22), 0 8px 24px rgba(30,20,80,0.10), inset 0 1px 0 rgba(255,255,255,0.95)",
+                willChange: "transform, opacity",
               }}
-              transition={spring}
-              initial={reduceMotion ? { opacity: 0 } : false}
-              animate={reduceMotion ? { opacity: 1 } : undefined}
-              exit={reduceMotion ? { opacity: 0 } : undefined}
+              variants={panelVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              transition={panelSpring}
             >
-              {/* Drag handle (mobile visual cue) */}
-              <div className="sm:hidden pt-2 pb-1 grid place-items-center">
-                <div className="w-10 h-1.5 rounded-full bg-text-muted/40" />
+              {/* Drag handle (mobile) */}
+              <div className="sm:hidden pt-3 pb-1 grid place-items-center shrink-0">
+                <div className="w-10 h-1 rounded-full bg-text-muted/35" />
               </div>
 
               {/* Close button */}
@@ -108,22 +139,23 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef, layoutI
                 ref={closeBtnRef}
                 onClick={onClose}
                 aria-label={tr("closeDetails")}
-                className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full grid place-items-center glass-pill"
+                className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full grid place-items-center"
+                style={{
+                  background: "rgba(255,255,255,0.75)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255,255,255,0.85)",
+                  boxShadow: "0 2px 8px rgba(80,70,160,0.10)",
+                }}
               >
                 <X size={16} />
               </button>
 
-              {/* Inner content fades after morph */}
-              <motion.div
-                className="flex-1 overflow-y-auto"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 4 }}
-                transition={reduceMotion ? { duration: 0.15 } : { delay: 0.18, duration: 0.25 }}
-              >
-                <PhotoGallery phone={phone} activeImg={activeImg} setActiveImg={setActiveImg} label={tr("photoGalleryLabel")} />
+              {/* Scrollable content wrapper with static top padding so it clips before the top edge */}
+              <div className="flex-1 overflow-hidden flex flex-col pt-0 sm:pt-3 px-3">
+                <div className="flex-1 overflow-y-auto overscroll-contain no-scrollbar rounded-t-2xl">
+                  <PhotoGallery phone={phone} activeImg={activeImg} setActiveImg={setActiveImg} label={tr("photoGalleryLabel")} />
 
-                <div className="px-5 pt-4 pb-5 space-y-4">
+                  <div className="px-2 pt-4 pb-5 space-y-4">
                   <div className="flex items-start justify-between gap-3 pr-12">
                     <div>
                       <h2 id={`phone-detail-title-${phone.id}`} className="text-xl sm:text-2xl font-extrabold leading-tight">
@@ -159,10 +191,17 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef, layoutI
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
+              </div>
 
-              {/* Sticky Buy Now */}
-              <div className="p-4 border-t border-white/60 bg-white/40 backdrop-blur-md">
+              {/* Sticky CTA */}
+              <div className="shrink-0 p-4"
+                style={{
+                  background: "rgba(255,255,255,0.50)",
+                  backdropFilter: "blur(20px)",
+                  borderTop: "1px solid rgba(255,255,255,0.60)",
+                }}
+              >
                 <a
                   href={shopWhatsAppLink(
                     `Hi! I'm interested in the ${phone.brand} ${phone.model} (${phone.storage}/${phone.ram}) listed for ${bdt(phone.sellingPrice)}. Is it still available?`
@@ -170,7 +209,7 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef, layoutI
                   target="_blank" rel="noreferrer"
                   className="btn-primary w-full !min-h-[48px]"
                 >
-                  <WhatsAppIcon size={16} color="#FFFFFF" /> {tr("whatsappToBuy")}
+                  <WhatsAppIcon size={18} color="#FFFFFF" /> {tr("whatsappToBuy")}
                 </a>
               </div>
             </motion.div>
@@ -200,9 +239,27 @@ function PhotoGallery({
   const single = urls.length === 1;
 
   return (
-    <div className="px-3 pt-3" aria-label={label}>
-      <div className="relative aspect-[4/3] bg-white/30 rounded-2xl overflow-hidden">
+    <div aria-label={label}>
+      <div className="relative aspect-[3/4] bg-white/30 rounded-2xl overflow-hidden group">
         <PhotoPlaceholder url={urls[activeImg] || ""} alt={`${phone.brand} ${phone.model}`} />
+        {!single && (
+          <>
+            <button
+              onClick={() => setActiveImg(activeImg === 0 ? urls.length - 1 : activeImg - 1)}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-md shadow-sm grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-30 text-text-primary border border-white/40"
+              aria-label="Previous image"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              onClick={() => setActiveImg(activeImg === urls.length - 1 ? 0 : activeImg + 1)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-md shadow-sm grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-30 text-text-primary border border-white/40"
+              aria-label="Next image"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </>
+        )}
       </div>
       {!single && (
         <div className="mt-3 flex items-center justify-center gap-1.5">

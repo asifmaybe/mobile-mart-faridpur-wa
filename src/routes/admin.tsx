@@ -14,7 +14,6 @@ import {
   type Memo, type Receipt, type ReceiptItem, updateMemo, deleteMemo, generateToken
 } from "../lib/storage";
 import { showToast, Modal } from "../lib/ui";
-import { InventoryView } from "../components/admin/InventoryView";
 import { MarketPricesView } from "../components/admin/MarketPriceLookup";
 import { ReceiptMakerView } from "../components/admin/ReceiptMaker";
 import { emptyItem, openReceiptPrint, buildWhatsAppText, ReceiptItemsList, ReceiptSummaryCard } from "../components/admin/ReceiptItemsPanel";
@@ -25,7 +24,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tab = "dashboard" | "new" | "memos" | "inventory" | "buysell" | "market" | "receipts" | "settings";
+type Tab = "dashboard" | "new" | "memos" | "buysell" | "market" | "receipts" | "settings";
 
 function AdminPage() {
   const { tr, lang } = useI18n();
@@ -98,8 +97,7 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
     { id: "dashboard",    Icon: LayoutDashboard, label: tr("dashboard") },
     { id: "new",          Icon: Plus,            label: tr("newMemo") },
     { id: "memos",        Icon: ClipboardList,   label: tr("allMemos") },
-    { id: "inventory",    Icon: Package,         label: tr("inventoryTitle") },
-    { id: "buysell",      Icon: ShoppingCart,    label: tr("buySellTitle") },
+    { id: "buysell",      Icon: ShoppingCart,    label: tr("inventoryTitle") },
     { id: "market",       Icon: TrendingUp,      label: tr("marketPriceTrackerTitle") },
     { id: "receipts",     Icon: ReceiptIcon,     label: tr("receiptMakerTitle") },
     { id: "settings",     Icon: SettingsIcon,    label: tr("settings") },
@@ -144,7 +142,6 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
           {tab === "dashboard" && <Dashboard tr={tr} lang={lang} go={setTab} />}
           {tab === "new" && <NewMemo tr={tr} lang={lang} go={setTab} />}
           {tab === "memos" && <AllMemos tr={tr} lang={lang} />}
-          {tab === "inventory" && <InventoryView tr={tr} lang={lang} />}
           {tab === "buysell" && <BuySellView tr={tr} lang={lang} />}
           {tab === "market" && <MarketPricesView tr={tr} lang={lang} />}
           {tab === "receipts" && <ReceiptMakerView tr={tr} lang={lang} />}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Plus, Pencil, Trash2, Search, ShoppingCart, Smartphone, Headphones,
-  Package, Coins, TrendingUp, AlertTriangle, X,
+  Package, Coins, TrendingUp, AlertTriangle, X, Upload,
 } from "lucide-react";
 import { Modal, showToast, StatusBadge } from "../../lib/ui";
 import {
@@ -238,8 +238,6 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
 
   const gallery = p.galleryUrls ?? [];
   const setGallery = (next: string[]) => set("galleryUrls", next);
-  const addPhotoRow = () => setGallery([...gallery, ""]);
-  const updatePhoto = (i: number, v: string) => setGallery(gallery.map((u, idx) => idx === i ? v : u));
   const removePhoto = (i: number) => setGallery(gallery.filter((_, idx) => idx !== i));
 
   const submit = (e: React.FormEvent) => {
@@ -248,7 +246,7 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
     if (p.purchasePrice < 0 || p.sellingPrice < 0 || p.batteryHealth < 0 || p.batteryHealth > 100) {
       showToast(tr("invalidValues") || "Invalid values"); return;
     }
-    onSave({ ...p, dateAdded: p.dateAdded || todayISO() });
+    onSave({ ...p, dateAdded: p.dateAdded || todayISO(), photoUrl: p.galleryUrls?.[0] || "" });
   };
 
   const lossWarning = p.sellingPrice > 0 && p.purchasePrice > 0 && p.sellingPrice < p.purchasePrice;
@@ -308,32 +306,24 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
             </Field>
           )}
         </div>
-        <Field label={tr("photoUrl") || "Photo URL"}>
-          <input value={p.photoUrl} onChange={(e) => set("photoUrl", e.target.value)} placeholder="https://..." className="glass-input" />
-        </Field>
-        <Field label={tr("galleryUrlsLabel")}>
-          <div className="space-y-2">
+        <Field label={tr("photosLabel") || "Photos (Upload 3:4 ratio)"}>
+          <div className="flex flex-wrap gap-2 items-center">
             {gallery.map((u, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  value={u}
-                  onChange={(e) => updatePhoto(i, e.target.value)}
-                  placeholder="https://..."
-                  className="glass-input flex-1"
-                />
+              <div key={i} className="relative w-16 aspect-[3/4] rounded-xl overflow-hidden shadow-sm shrink-0 border border-white/20">
+                <img src={u} alt="Preview" className="w-full h-full object-cover" />
+                <div className="absolute bottom-0 inset-x-0 bg-black/60 text-[9px] text-white text-center py-0.5 font-semibold backdrop-blur-md">
+                  {i === 0 ? "Primary" : "Secondary"}
+                </div>
                 <button
                   type="button"
                   onClick={() => removePhoto(i)}
-                  aria-label="Remove"
-                  className="w-10 h-10 rounded-lg grid place-items-center glass-pill text-accent-red shrink-0"
+                  className="absolute inset-0 bg-black/50 text-white grid place-items-center opacity-0 hover:opacity-100 transition-opacity"
                 >
-                  <X size={14} />
+                  <X size={16} />
                 </button>
               </div>
             ))}
-            <button type="button" onClick={addPhotoRow} className="btn-glass !py-1.5 !px-3 text-xs">
-              <Plus size={12} /> {tr("addPhotoUrl")}
-            </button>
+            <ImageUploader onUpload={(b64) => setGallery([...gallery, b64])} />
           </div>
         </Field>
         <Field label={tr("shortDescription")}>
@@ -527,8 +517,22 @@ function AccessoryForm({ tr, initial, onClose, onSave }: {
           <Field label={tr("dateAdded") || "Date Added"}>
             <input type="date" value={a.dateAdded.slice(0, 10)} onChange={(e) => set("dateAdded", new Date(e.target.value).toISOString())} className="glass-input" />
           </Field>
-          <Field label={tr("photoUrl") || "Photo URL"}>
-            <input value={a.photoUrl} onChange={(e) => set("photoUrl", e.target.value)} placeholder="https://..." className="glass-input" />
+          <Field label={tr("photoUrl") || "Photo (Upload 3:4 ratio)"}>
+            <div className="flex gap-2 items-center">
+              {a.photoUrl ? (
+                <div className="relative w-16 aspect-[3/4] rounded-xl overflow-hidden shadow-sm shrink-0 border border-white/20">
+                  <img src={a.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <button 
+                    type="button" 
+                    onClick={() => set("photoUrl", "")} 
+                    className="absolute inset-0 bg-black/50 text-white grid place-items-center opacity-0 hover:opacity-100 transition-opacity"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : null}
+              <ImageUploader onUpload={(b64) => set("photoUrl", b64)} />
+            </div>
           </Field>
         </div>
         {lossWarning && (
@@ -589,5 +593,42 @@ function PhoneStepper({ status }: { status: PhoneStatus }) {
         );
       })}
     </div>
+  );
+}
+
+function ImageUploader({ onUpload }: { onUpload: (base64: string) => void }) {
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 800;
+        let scaleSize = 1;
+        if (img.width > MAX_WIDTH) {
+          scaleSize = MAX_WIDTH / img.width;
+        }
+        canvas.width = img.width * scaleSize;
+        canvas.height = img.height * scaleSize;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Output as WebP or JPEG to save space
+        const dataUrl = canvas.toDataURL("image/webp", 0.7);
+        onUpload(dataUrl);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <label className="btn-glass !py-1.5 !px-3 shrink-0 cursor-pointer inline-flex items-center justify-center">
+      <Upload size={16} />
+      <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+    </label>
   );
 }
