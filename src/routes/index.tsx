@@ -112,7 +112,7 @@ function Home() {
               </h1>
             ) : (
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-[1.05] fade-up">
-                <>Buy, Sell & Exchange Phones.<br /><span style={{ background: "linear-gradient(135deg,#5847C7,#7C6FE8,#5BB890)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Trusted & Hassle-Free.</span></>
+                <>Buy, Sell & Exchange Phones.<br /><span style={{ background: "linear-gradient(135deg,#5847C7,#7C6FE8,#5BB890)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Trusted & Hassle Free.</span></>
               </h1>
             )}
             <p className={`mt-5 max-w-xl mx-auto text-base text-text-secondary fade-up ${lang === "bn" ? "bn" : ""}`} style={{ animationDelay: "0.1s" }}>
