@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { X, Flame, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Flame, ChevronLeft, ChevronRight, GitCompareArrows } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useI18n } from "../lib/i18n";
 import { isJustIn, type UsedPhone } from "../lib/storage";
 import { bdt, shopWhatsAppLink } from "../lib/wa";
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props) {
-  const { tr } = useI18n();
+  const { tr, lang } = useI18n();
   const reduceMotion = useReducedMotion();
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -106,14 +107,14 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
           />
 
           {/* Panel container */}
-          <div className="fixed inset-0 z-[96] pointer-events-none flex sm:items-center items-end justify-center sm:p-6">
+          <div className="fixed inset-0 z-[96] pointer-events-none flex sm:items-center items-end justify-center p-4 sm:p-6">
             <motion.div
               ref={panelRef}
               key={`modal-${phone.id}`}
               role="dialog"
               aria-modal="true"
               aria-labelledby={`phone-detail-title-${phone.id}`}
-              className="pointer-events-auto w-full sm:max-w-[680px] max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col rounded-t-[26px] sm:rounded-[26px]"
+              className="pointer-events-auto w-full sm:max-w-[680px] max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col rounded-[26px]"
               style={{
                 background: "rgba(255,255,255,0.72)",
                 backdropFilter: "blur(40px) saturate(200%)",
@@ -195,19 +196,26 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
               </div>
 
               {/* Sticky CTA */}
-              <div className="shrink-0 p-4"
+              <div className="shrink-0 p-4 flex gap-3"
                 style={{
                   background: "rgba(255,255,255,0.50)",
                   backdropFilter: "blur(20px)",
                   borderTop: "1px solid rgba(255,255,255,0.60)",
                 }}
               >
+                <Link
+                  to="/compare"
+                  search={{ id1: phone.id }}
+                  className="btn-glass flex-1 !min-h-[48px] justify-center text-sm sm:text-base px-2"
+                >
+                  <GitCompareArrows size={18} /> <span className="ml-1">{lang === "bn" ? "তুলনা" : "Compare"}</span>
+                </Link>
                 <a
                   href={shopWhatsAppLink(
                     `Hi! I'm interested in the ${phone.brand} ${phone.model} (${phone.storage}/${phone.ram}) listed for ${bdt(phone.sellingPrice)}. Is it still available?`
                   )}
                   target="_blank" rel="noreferrer"
-                  className="btn-primary w-full !min-h-[48px]"
+                  className="btn-primary flex-[2] !min-h-[48px] justify-center text-sm sm:text-base"
                 >
                   <WhatsAppIcon size={18} color="#FFFFFF" /> {tr("whatsappToBuy")}
                 </a>

@@ -9,9 +9,14 @@ import { getAvailablePhones, seedBuySellData, type UsedPhone, type PhoneConditio
 import { shopWhatsAppLink, bdt } from "../lib/wa";
 
 export const Route = createFileRoute("/compare")({
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      id1: (search.id1 as string) || "",
+    };
+  },
   head: () => ({
     meta: [
-      { title: "Compare Phones — Mak Electronics" },
+      { title: "Compare Phones — Faridpur Mobile Mart" },
       { name: "description", content: "Side-by-side comparison of available used phones." },
     ],
   }),
@@ -42,8 +47,9 @@ function ComparePage() {
     return () => window.removeEventListener("repairshop:change", h);
   }, []);
 
+  const search = Route.useSearch();
   const phones = getAvailablePhones();
-  const [id1, setId1] = useState("");
+  const [id1, setId1] = useState(search.id1 || "");
   const [id2, setId2] = useState("");
 
   const p1 = phones.find((p) => p.id === id1);

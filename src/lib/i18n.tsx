@@ -292,7 +292,7 @@ export const t: Dict = {
   searchRates: { en: "Search brand, model, or issue", bn: "ব্র্যান্ড, মডেল বা সমস্যা খুঁজুন" },
   modelWildcardHint: { en: "Leave blank = wildcard for any model of this brand", bn: "খালি = এই ব্র্যান্ডের যেকোনো মডেল" },
   // hero eyebrow
-  heroEyebrow: { en: "Buy · Sell · Exchange · Repair", bn: "কিনুন · বিক্রি করুন · এক্সচেঞ্জ · মেরামত" },
+  heroEyebrow: { en: "Buy · Sell · Exchange", bn: "কিনুন · বিক্রি করুন · এক্সচেঞ্জ করুন" },
   // Featured Phones section
   featuredPhonesEyebrow: { en: "OUR INVENTORY", bn: "আমাদের স্টক" },
   featuredPhonesTitle: { en: "Phones Ready to Go", bn: "প্রস্তুত ফোনসমূহ" },

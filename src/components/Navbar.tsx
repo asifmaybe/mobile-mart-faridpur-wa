@@ -45,7 +45,7 @@ export function Navbar() {
           </div>
 
           <div className="leading-tight min-w-0">
-            <div className="font-bold text-sm truncate">{settings.shopName || "Mak Electronics"}</div>
+            <div className="font-bold text-sm truncate">{settings.shopName || "Faridpur Mobile Mart"}</div>
             <div className="text-[10px] text-text-muted truncate bn">{settings.shopNameBn || "ম্যাক ইলেকট্রনিক্স"}</div>
           </div>
         </Link>

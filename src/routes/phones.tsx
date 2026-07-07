@@ -18,9 +18,9 @@ import { Modal } from "../lib/ui";
 export const Route = createFileRoute("/phones")({
   head: () => ({
     meta: [
-      { title: "Used Phones — Mak Electronics" },
+      { title: "Used Phones — Faridpur Mobile Mart" },
       { name: "description", content: "Quality-checked used phones in Faridpur — Samsung, Apple, Xiaomi and more." },
-      { property: "og:title", content: "Used Phones — Mak Electronics" },
+      { property: "og:title", content: "Used Phones — Faridpur Mobile Mart" },
       { property: "og:description", content: "Quality-checked used phones, ready to use." },
     ],
   }),
@@ -46,6 +46,7 @@ function PhonesPage() {
   const [mobileFilters, setMobileFilters] = useState(false);
 
   const all = getAvailablePhones();
+  console.log("[PhonesPage] all:", all);
   const brands = useMemo(() => Array.from(new Set(all.map((p) => p.brand))).sort(), [all]);
 
   const filtered = useMemo(() => filterPhones(all, {

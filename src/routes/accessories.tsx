@@ -17,9 +17,9 @@ import { EmptyState } from "./phones";
 export const Route = createFileRoute("/accessories")({
   head: () => ({
     meta: [
-      { title: "Accessories — Mak Electronics" },
+      { title: "Accessories — Faridpur Mobile Mart" },
       { name: "description", content: "Power banks, chargers, headphones, cases and cables in Faridpur." },
-      { property: "og:title", content: "Accessories — Mak Electronics" },
+      { property: "og:title", content: "Accessories — Faridpur Mobile Mart" },
       { property: "og:description", content: "Quality phone accessories at fair prices." },
     ],
   }),
@@ -121,7 +121,7 @@ export function AccessoryCard({ acc, tr }: { acc: Accessory; tr: (k: any) => str
       <div className="relative aspect-[4/3] bg-white/30">
         <PhotoPlaceholder url={acc.photoUrl} alt={acc.name} />
         <span className={`absolute top-2 right-2 inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${inStock ? "bg-accent-green/20 text-accent-green border-accent-green/40"
-            : "bg-accent-red/20 text-accent-red border-accent-red/40"
+          : "bg-accent-red/20 text-accent-red border-accent-red/40"
           }`}>
           {inStock ? tr("inStock") : tr("outOfStockLabel")}
         </span>

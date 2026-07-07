@@ -20,8 +20,8 @@ import { PhoneDetailModal } from "../components/PhoneDetailModal";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Mak Electronics — Expert Mobile Repair Shop, Faridpur" },
-      { name: "description", content: "Trusted mobile repair in Faridpur: screen, battery, water damage, software unlock. Same-day service. 1-year warranty." },
+      { title: "Faridpur Mobile Mart — Authentic Used Phone Shop, Faridpur" },
+      { name: "description", content: "Trusted mobile phone shop in Faridpur: Where You Get Quality Used Mobile Phone." },
     ],
   }),
   component: Home,
@@ -70,7 +70,7 @@ function Home() {
   useEffect(() => {
     const h = () => {
       setSettings(getSettings());
-      
+
       const avail = getAvailablePhones();
       const sortedPhones = avail.sort((a, b) => {
         const aIsJustIn = isJustIn(a.dateAdded);
@@ -169,10 +169,10 @@ function Home() {
             <p className={`text-base md:text-lg text-text-secondary max-w-2xl mx-auto mb-8 ${lang === "bn" ? "bn" : ""}`}>
               {tr("exchangeBody")}
             </p>
-            <a 
-              href={`https://wa.me/${settings.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent("Hi, I'd like to know the exchange value for my phone.")}`} 
-              target="_blank" 
-              rel="noreferrer" 
+            <a
+              href={`https://wa.me/${settings.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent("Hi, I'd like to know the exchange value for my phone.")}`}
+              target="_blank"
+              rel="noreferrer"
               className="btn-primary"
             >
               <MessageCircle size={18} /> {tr("exchangeCTA")}
@@ -358,7 +358,7 @@ function Home() {
           </div>
         </section>
       </main>
-      
+
       <PhoneDetailModal
         phone={detail}
         open={!!detail}
@@ -366,7 +366,7 @@ function Home() {
         returnFocusRef={triggerRef}
         layoutIdPrefix="featured"
       />
-      
+
       <Footer />
     </div>
   );
