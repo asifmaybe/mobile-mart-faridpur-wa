@@ -151,7 +151,7 @@ export const t: Dict = {
   noEntries: { en: "No entries yet.", bn: "কোনো এন্ট্রি নেই।" },
   unassigned: { en: "Unassigned", bn: "নির্ধারিত নয়" },
   // receipts
-  receiptMakerTitle: { en: "Receipt Maker", bn: "রিসিট মেকার" },
+
   newReceipt: { en: "New Receipt", bn: "নতুন রিসিট" },
   receiptHistory: { en: "Receipt History", bn: "রিসিট হিস্টরি" },
   receiptNo: { en: "Receipt No.", bn: "রিসিট নং" },

@@ -49,29 +49,17 @@ const FAQS = [
 function Home() {
   const { tr, lang } = useI18n();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [settings, setSettings] = useState(getSettings());
-  const [featuredPhones, setFeaturedPhones] = useState<UsedPhone[]>(() => {
-    const avail = getAvailablePhones();
-    const sortedPhones = avail.sort((a, b) => {
-      const aIsJustIn = isJustIn(a.dateAdded);
-      const bIsJustIn = isJustIn(b.dateAdded);
-      if (aIsJustIn && !bIsJustIn) return -1;
-      if (!aIsJustIn && bIsJustIn) return 1;
-      return Date.parse(b.dateAdded) - Date.parse(a.dateAdded);
-    });
-    return sortedPhones.slice(0, 6);
-  });
-  const [accessories, setAccessories] = useState<Accessory[]>(() => {
-    return getAccessories().sort((a, b) => Date.parse(b.dateAdded) - Date.parse(a.dateAdded)).slice(0, 4);
-  });
+  const [settings, setSettings] = useState<any>(null);
+  const [featuredPhones, setFeaturedPhones] = useState<UsedPhone[]>([]);
+  const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [detail, setDetail] = useState<UsedPhone | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    const h = () => {
-      setSettings(getSettings());
+    const h = async () => {
+      setSettings(await getSettings());
 
-      const avail = getAvailablePhones();
+      const avail = await getAvailablePhones();
       const sortedPhones = avail.sort((a, b) => {
         const aIsJustIn = isJustIn(a.dateAdded);
         const bIsJustIn = isJustIn(b.dateAdded);
@@ -81,12 +69,16 @@ function Home() {
       });
       setFeaturedPhones(sortedPhones.slice(0, 6));
 
-      const accs = getAccessories().sort((a, b) => Date.parse(b.dateAdded) - Date.parse(a.dateAdded));
-      setAccessories(accs.slice(0, 4));
+      const fetchedAccs = await getAccessories();
+      const sortedAccs = fetchedAccs.sort((a, b) => Date.parse(b.dateAdded) - Date.parse(a.dateAdded));
+      setAccessories(sortedAccs.slice(0, 4));
     };
+    h();
     window.addEventListener("repairshop:change", h);
     return () => window.removeEventListener("repairshop:change", h);
   }, []);
+
+  if (!settings) return null;
 
   const openDetail = (p: UsedPhone, trigger: HTMLElement | null) => {
     triggerRef.current = trigger;

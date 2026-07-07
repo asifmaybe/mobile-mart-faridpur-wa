@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 export interface Settings {
   shopName: string;
   shopNameBn: string;
@@ -75,14 +77,9 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 const KEYS = {
-  memos: "repairShopMemos",
   settings: "repairShopSettings",
   auth: "repairShopAuth",
-  inventory: "repairShopInventory",
   marketPrices: "repairShopMarketPrices",
-  receipts: "repairShopReceipts",
-  phones: "mac_phones",
-  accessories: "mac_accessories",
 } as const;
 
 export interface ReceiptItem {
@@ -165,40 +162,123 @@ function normalizeMemo(m: Partial<Memo> & { token: string }): Memo {
   };
 }
 
-export function getMemos(): Memo[] {
-  if (!isBrowser()) return [];
-  try {
-    const raw = JSON.parse(localStorage.getItem(KEYS.memos) || "[]");
-    return Array.isArray(raw) ? raw.map(normalizeMemo) : [];
-  } catch { return []; }
+// Convert snake_case from DB to camelCase for app
+function toCamelCaseMemo(dbMemo: any): Memo {
+  return {
+    token: dbMemo.token,
+    customerName: dbMemo.customer_name,
+    customerPhone: dbMemo.customer_phone,
+    device: dbMemo.device,
+    note: dbMemo.note,
+    date: dbMemo.date,
+    createdAt: dbMemo.created_at,
+  };
 }
-export function saveMemos(memos: Memo[]) {
-  if (!isBrowser()) return;
-  localStorage.setItem(KEYS.memos, JSON.stringify(memos));
+
+function toSnakeCaseMemo(m: Memo): any {
+  return {
+    token: m.token,
+    customer_name: m.customerName,
+    customer_phone: m.customerPhone,
+    device: m.device,
+    note: m.note,
+    date: m.date,
+    created_at: m.createdAt,
+  };
+}
+
+export async function getMemos(): Promise<Memo[]> {
+  if (!isBrowser()) return [];
+  const { data, error } = await supabase.from('memos').select('*').order('created_at', { ascending: false });
+  if (error) {
+    console.error("Error fetching memos:", error);
+    return [];
+  }
+  return data.map(toCamelCaseMemo);
+}
+
+export async function getMemoByToken(token: string): Promise<Memo | undefined> {
+  const { data } = await supabase.from('memos').select('*').ilike('token', token).single();
+  return data ? toCamelCaseMemo(data) : undefined;
+}
+
+export async function updateMemo(token: string, patch: Partial<Memo>) {
+  const snakePatch: any = {};
+  if (patch.customerName !== undefined) snakePatch.customer_name = patch.customerName;
+  if (patch.customerPhone !== undefined) snakePatch.customer_phone = patch.customerPhone;
+  if (patch.device !== undefined) snakePatch.device = patch.device;
+  if (patch.note !== undefined) snakePatch.note = patch.note;
+  if (patch.date !== undefined) snakePatch.date = patch.date;
+
+  await supabase.from('memos').update(snakePatch).eq('token', token);
   fire();
 }
-export function getMemoByToken(token: string) {
-  return getMemos().find((m) => m.token.toLowerCase() === token.toLowerCase());
+
+export async function deleteMemo(token: string) {
+  await supabase.from('memos').delete().eq('token', token);
+  fire();
 }
-export function updateMemo(token: string, patch: Partial<Memo>) {
-  const memos = getMemos().map((m) => (m.token === token ? { ...m, ...patch } : m));
-  saveMemos(memos);
+
+export async function addMemo(m: Memo) {
+  await supabase.from('memos').insert([toSnakeCaseMemo(normalizeMemo(m))]);
+  fire();
 }
-export function deleteMemo(token: string) {
-  saveMemos(getMemos().filter((m) => m.token !== token));
-}
-export function addMemo(m: Memo) {
-  saveMemos([normalizeMemo(m), ...getMemos()]);
-}
-export function generateToken(): string {
-  const existing = new Set(getMemos().map((m) => m.token));
+
+export async function generateToken(): Promise<string> {
+  const memos = await getMemos();
+  const existing = new Set(memos.map((m) => m.token));
   let t = "";
   do { t = "MEMO-" + Math.floor(1000 + Math.random() * 9000); } while (existing.has(t));
   return t;
 }
 
 // ===== Settings =====
-export function getSettings(): Settings {
+function toCamelCaseSettings(dbSet: any): Settings {
+  return {
+    shopName: dbSet.shop_name,
+    shopNameBn: dbSet.shop_name_bn,
+    phone: dbSet.phone,
+    whatsapp: dbSet.whatsapp,
+    email: dbSet.email,
+    address: dbSet.address,
+    addressBn: dbSet.address_bn,
+    website: dbSet.website,
+    hours: dbSet.hours,
+    adminUsername: dbSet.admin_username,
+    adminPassword: dbSet.admin_password,
+  };
+}
+
+function toSnakeCaseSettings(s: Settings): any {
+  return {
+    shop_name: s.shopName,
+    shop_name_bn: s.shopNameBn,
+    phone: s.phone,
+    whatsapp: s.whatsapp,
+    email: s.email,
+    address: s.address,
+    address_bn: s.addressBn,
+    website: s.website,
+    hours: s.hours,
+    admin_username: s.adminUsername,
+    admin_password: s.adminPassword,
+  };
+}
+
+export async function getSettings(): Promise<Settings> {
+  if (!isBrowser()) return DEFAULT_SETTINGS;
+  const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
+  if (error || !data) {
+    console.error("Error fetching settings:", error);
+    return getCachedSettings();
+  }
+  const settings = toCamelCaseSettings(data);
+  localStorage.setItem(KEYS.settings, JSON.stringify(settings));
+  return settings;
+}
+
+// Synchronous cached version for immediate UI rendering
+export function getCachedSettings(): Settings {
   if (!isBrowser()) return DEFAULT_SETTINGS;
   try {
     const raw = localStorage.getItem(KEYS.settings);
@@ -206,11 +286,23 @@ export function getSettings(): Settings {
     return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
   } catch { return DEFAULT_SETTINGS; }
 }
-export function saveSettings(s: Settings) {
+
+export async function saveSettings(s: Settings) {
   if (!isBrowser()) return;
+  await supabase.from('settings').update(toSnakeCaseSettings(s)).eq('id', 1);
   localStorage.setItem(KEYS.settings, JSON.stringify(s));
   fire();
 }
+
+// Ensure settings exist in DB
+export async function initializeSettings() {
+  const { data } = await supabase.from('settings').select('id').eq('id', 1).single();
+  if (!data) {
+    await supabase.from('settings').insert([{ id: 1, ...toSnakeCaseSettings(DEFAULT_SETTINGS) }]);
+  }
+  await getSettings();
+}
+
 
 // ===== Auth =====
 export function isAuthed(): boolean {
@@ -223,47 +315,85 @@ export function setAuthed(v: boolean) {
   else sessionStorage.removeItem(KEYS.auth);
 }
 
-// ===== Inventory (Parts for Market Prices if needed, though they don't do repairs, we can keep the base part logic just in case it's used for accessories) =====
-export function getInventory(): InventoryPart[] {
+// ===== Inventory =====
+function toCamelCasePart(dbPart: any): InventoryPart {
+  return {
+    partId: dbPart.part_id,
+    name: dbPart.name,
+    category: dbPart.category,
+    compatibleBrand: dbPart.compatible_brand,
+    compatibleModel: dbPart.compatible_model,
+    costPrice: dbPart.cost_price,
+    sellingPrice: dbPart.selling_price,
+    quantity: dbPart.quantity,
+    reorderThreshold: dbPart.reorder_threshold,
+    supplierNote: dbPart.supplier_note,
+    lastRestocked: dbPart.last_restocked,
+  };
+}
+
+function toSnakeCasePart(p: InventoryPart): any {
+  return {
+    part_id: p.partId,
+    name: p.name,
+    category: p.category,
+    compatible_brand: p.compatibleBrand,
+    compatible_model: p.compatibleModel,
+    cost_price: p.costPrice,
+    selling_price: p.sellingPrice,
+    quantity: p.quantity,
+    reorder_threshold: p.reorderThreshold,
+    supplier_note: p.supplierNote,
+    last_restocked: p.lastRestocked,
+  };
+}
+
+export async function getInventory(): Promise<InventoryPart[]> {
   if (!isBrowser()) return [];
-  try { return JSON.parse(localStorage.getItem(KEYS.inventory) || "[]"); } catch { return []; }
+  const { data, error } = await supabase.from('inventory_parts').select('*');
+  if (error) return [];
+  return data.map(toCamelCasePart);
 }
-export function saveInventory(items: InventoryPart[]) {
-  if (!isBrowser()) return;
-  localStorage.setItem(KEYS.inventory, JSON.stringify(items));
-  fire();
+
+export async function getPartById(partId: string): Promise<InventoryPart | undefined> {
+  const { data } = await supabase.from('inventory_parts').select('*').eq('part_id', partId).single();
+  return data ? toCamelCasePart(data) : undefined;
 }
-export function getPartById(partId: string) {
-  return getInventory().find((p) => p.partId === partId);
-}
-export function generatePartId(): string {
-  const existing = new Set(getInventory().map((p) => p.partId));
+
+export async function generatePartId(): Promise<string> {
+  const items = await getInventory();
+  const existing = new Set(items.map((p) => p.partId));
   let t = "";
   do { t = "PART-" + Math.floor(1000 + Math.random() * 9000); } while (existing.has(t));
   return t;
 }
-export function upsertPart(part: InventoryPart) {
-  const items = getInventory();
-  const i = items.findIndex((p) => p.partId === part.partId);
-  if (i >= 0) items[i] = part; else items.unshift(part);
-  saveInventory(items);
-}
-export function deletePart(partId: string) {
-  saveInventory(getInventory().filter((p) => p.partId !== partId));
-}
-export function adjustStock(partId: string, delta: number) {
-  const items = getInventory();
-  const i = items.findIndex((p) => p.partId === partId);
-  if (i < 0) return;
-  items[i] = { ...items[i], quantity: Math.max(0, items[i].quantity + delta) };
-  if (delta > 0) items[i].lastRestocked = new Date().toISOString().slice(0, 10);
-  saveInventory(items);
-}
-export function getLowStockItems() {
-  return getInventory().filter((p) => p.quantity <= p.reorderThreshold);
+
+export async function upsertPart(part: InventoryPart) {
+  await supabase.from('inventory_parts').upsert([toSnakeCasePart(part)], { onConflict: 'part_id' });
+  fire();
 }
 
-// ===== Market Prices =====
+export async function deletePart(partId: string) {
+  await supabase.from('inventory_parts').delete().eq('part_id', partId);
+  fire();
+}
+
+export async function adjustStock(partId: string, delta: number) {
+  const part = await getPartById(partId);
+  if (!part) return;
+  const newQuantity = Math.max(0, part.quantity + delta);
+  const patch: any = { quantity: newQuantity };
+  if (delta > 0) patch.last_restocked = new Date().toISOString().slice(0, 10);
+  await supabase.from('inventory_parts').update(patch).eq('part_id', partId);
+  fire();
+}
+
+export async function getLowStockItems(): Promise<InventoryPart[]> {
+  const items = await getInventory();
+  return items.filter((p) => p.quantity <= p.reorderThreshold);
+}
+
+// ===== Market Prices (Kept in localStorage as requested) =====
 export function getMarketPrices(): MarketPriceEntry[] {
   if (!isBrowser()) return [];
   try { return JSON.parse(localStorage.getItem(KEYS.marketPrices) || "[]"); } catch { return []; }
@@ -311,46 +441,78 @@ export function daysSince(dateStr: string) {
 }
 
 // ===== Receipts =====
-export function getReceipts(): Receipt[] {
+function toCamelCaseReceipt(dbRec: any): Receipt {
+  return {
+    id: dbRec.id,
+    receiptNo: dbRec.receipt_no,
+    date: dbRec.date,
+    customerName: dbRec.customer_name,
+    customerPhone: dbRec.customer_phone,
+    device: dbRec.device,
+    jobToken: dbRec.job_token,
+    items: dbRec.items,
+    subtotal: dbRec.subtotal,
+    discount: dbRec.discount,
+    taxRate: dbRec.tax_rate,
+    tax: dbRec.tax,
+    grandTotal: dbRec.grand_total,
+    totalCost: dbRec.total_cost,
+    totalMargin: dbRec.total_margin,
+    notes: dbRec.notes,
+    createdAt: dbRec.created_at,
+  };
+}
+
+function toSnakeCaseReceipt(r: Receipt): any {
+  return {
+    id: r.id,
+    receipt_no: r.receiptNo,
+    date: r.date,
+    customer_name: r.customerName,
+    customer_phone: r.customerPhone,
+    device: r.device,
+    job_token: r.jobToken,
+    items: r.items,
+    subtotal: r.subtotal,
+    discount: r.discount,
+    tax_rate: r.taxRate,
+    tax: r.tax,
+    grand_total: r.grandTotal,
+    total_cost: r.totalCost,
+    total_margin: r.totalMargin,
+    notes: r.notes,
+    created_at: r.createdAt,
+  };
+}
+
+export async function getReceipts(): Promise<Receipt[]> {
   if (!isBrowser()) return [];
-  try { return JSON.parse(localStorage.getItem(KEYS.receipts) || "[]"); } catch { return []; }
+  const { data, error } = await supabase.from('receipts').select('*').order('created_at', { ascending: false });
+  if (error) return [];
+  return data.map(toCamelCaseReceipt);
 }
-export function saveReceipts(items: Receipt[]) {
-  if (!isBrowser()) return;
-  localStorage.setItem(KEYS.receipts, JSON.stringify(items));
-  fire();
-}
-export function generateReceiptNo(): string {
-  const existing = new Set(getReceipts().map((r) => r.receiptNo));
+
+export async function generateReceiptNo(): Promise<string> {
+  const receipts = await getReceipts();
+  const existing = new Set(receipts.map((r) => r.receiptNo));
   let t = "";
   do { t = "RCP-" + Math.floor(1000 + Math.random() * 9000); } while (existing.has(t));
   return t;
 }
-export function addReceipt(r: Receipt) {
-  saveReceipts([r, ...getReceipts()]);
+
+export async function addReceipt(r: Receipt) {
+  await supabase.from('receipts').insert([toSnakeCaseReceipt(r)]);
   for (const it of r.items) {
-    if (it.partId) adjustStock(it.partId, -Math.abs(it.qty));
+    if (it.partId) await adjustStock(it.partId, -Math.abs(it.qty));
   }
-}
-export function deleteReceipt(id: string) {
-  saveReceipts(getReceipts().filter((r) => r.id !== id));
+  fire();
 }
 
-export function seedDemoData() {
-  if (!isBrowser()) return;
-  const today = new Date();
-  seedBuySellData();
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
-  const minus = (n: number) => { const d = new Date(today); d.setDate(d.getDate() - n); return iso(d); };
-
-  // --- Market Prices ---
-  if (getMarketPrices().length === 0) {
-    const mkt: MarketPriceEntry[] = [
-      { entryId: "MKT-0201", brand: "Samsung", model: "Galaxy A54", partType: "Display", marketLow: 1800, marketHigh: 2400, notes: "OEM ~2200, copy ~1800", lastUpdated: minus(5) },
-    ];
-    saveMarketPrices(mkt);
-  }
+export async function deleteReceipt(id: string) {
+  await supabase.from('receipts').delete().eq('id', id);
+  fire();
 }
+
 
 // ============= Buy/Sell: Phones & Accessories =============
 
@@ -412,36 +574,87 @@ export function recomputeAccessoryStatus(a: Accessory): Accessory {
 }
 
 // ---- Phones ----
-export function getPhones(): UsedPhone[] {
+function toCamelCasePhone(dbPhone: any): UsedPhone {
+  return {
+    id: dbPhone.id,
+    brand: dbPhone.brand,
+    model: dbPhone.model,
+    storage: dbPhone.storage,
+    ram: dbPhone.ram,
+    batteryHealth: dbPhone.battery_health,
+    condition: dbPhone.condition,
+    purchasePrice: dbPhone.purchase_price,
+    sellingPrice: dbPhone.selling_price,
+    status: dbPhone.status,
+    photoUrl: dbPhone.photo_url,
+    notes: dbPhone.notes,
+    dateAdded: dbPhone.date_added,
+    galleryUrls: dbPhone.gallery_urls,
+    shortDescription: dbPhone.short_description,
+    imei: dbPhone.imei,
+    soldDate: dbPhone.sold_date,
+    warrantyTerms: dbPhone.warranty_terms,
+  };
+}
+
+function toSnakeCasePhone(p: UsedPhone): any {
+  return {
+    id: p.id,
+    brand: p.brand,
+    model: p.model,
+    storage: p.storage,
+    ram: p.ram,
+    battery_health: p.batteryHealth,
+    condition: p.condition,
+    purchase_price: p.purchasePrice,
+    selling_price: p.sellingPrice,
+    status: p.status,
+    photo_url: p.photoUrl,
+    notes: p.notes,
+    date_added: p.dateAdded,
+    gallery_urls: p.galleryUrls || [],
+    short_description: p.shortDescription || '',
+    imei: p.imei || '',
+    sold_date: p.soldDate || null,
+    warranty_terms: p.warrantyTerms || '',
+  };
+}
+
+export async function getPhones(): Promise<UsedPhone[]> {
   if (!isBrowser()) return [];
-  try { return JSON.parse(localStorage.getItem(KEYS.phones) || "[]"); } catch { return []; }
+  const { data, error } = await supabase.from('phones').select('*').order('date_added', { ascending: false });
+  if (error) return [];
+  return data.map(toCamelCasePhone);
 }
-export function savePhones(items: UsedPhone[]) {
-  if (!isBrowser()) return;
-  localStorage.setItem(KEYS.phones, JSON.stringify(items));
-  fire();
+
+export async function getPhoneById(id: string): Promise<UsedPhone | undefined> {
+  const { data } = await supabase.from('phones').select('*').eq('id', id).single();
+  return data ? toCamelCasePhone(data) : undefined;
 }
-export function getPhoneById(id: string) {
-  return getPhones().find((p) => p.id === id);
+
+export async function getAvailablePhones(): Promise<UsedPhone[]> {
+  const phones = await getPhones();
+  return phones.filter((p) => p.status === "Listed");
 }
-export function getAvailablePhones() {
-  return getPhones().filter((p) => p.status === "Listed");
-}
-export function generatePhoneId(): string {
-  const existing = new Set(getPhones().map((p) => p.id));
+
+export async function generatePhoneId(): Promise<string> {
+  const phones = await getPhones();
+  const existing = new Set(phones.map((p) => p.id));
   let t = "";
   do { t = "PHN-" + Math.floor(1000 + Math.random() * 9000); } while (existing.has(t));
   return t;
 }
-export function upsertPhone(p: UsedPhone) {
-  const list = getPhones();
-  const i = list.findIndex((x) => x.id === p.id);
-  if (i >= 0) list[i] = p; else list.unshift(p);
-  savePhones(list);
+
+export async function upsertPhone(p: UsedPhone) {
+  await supabase.from('phones').upsert([toSnakeCasePhone(p)], { onConflict: 'id' });
+  fire();
 }
-export function deletePhone(id: string) {
-  savePhones(getPhones().filter((p) => p.id !== id));
+
+export async function deletePhone(id: string) {
+  await supabase.from('phones').delete().eq('id', id);
+  fire();
 }
+
 export function filterPhones(
   phones: UsedPhone[],
   f: { brand?: string; condition?: string; minPrice?: number; maxPrice?: number },
@@ -456,37 +669,67 @@ export function filterPhones(
 }
 
 // ---- Accessories ----
-export function getAccessories(): Accessory[] {
+function toCamelCaseAccessory(dbAcc: any): Accessory {
+  return {
+    id: dbAcc.id,
+    name: dbAcc.name,
+    category: dbAcc.category,
+    brand: dbAcc.brand,
+    purchasePrice: dbAcc.purchase_price,
+    sellingPrice: dbAcc.selling_price,
+    stockQuantity: dbAcc.stock_quantity,
+    photoUrl: dbAcc.photo_url,
+    status: dbAcc.status,
+    dateAdded: dbAcc.date_added,
+  };
+}
+
+function toSnakeCaseAccessory(a: Accessory): any {
+  return {
+    id: a.id,
+    name: a.name,
+    category: a.category,
+    brand: a.brand,
+    purchase_price: a.purchasePrice,
+    selling_price: a.sellingPrice,
+    stock_quantity: a.stockQuantity,
+    photo_url: a.photoUrl,
+    status: a.status,
+    date_added: a.dateAdded,
+  };
+}
+
+
+export async function getAccessories(): Promise<Accessory[]> {
   if (!isBrowser()) return [];
-  try {
-    const raw: Accessory[] = JSON.parse(localStorage.getItem(KEYS.accessories) || "[]");
-    return raw.map(recomputeAccessoryStatus);
-  } catch { return []; }
+  const { data, error } = await supabase.from('accessories').select('*').order('date_added', { ascending: false });
+  if (error) return [];
+  return data.map(toCamelCaseAccessory).map(recomputeAccessoryStatus);
 }
-export function saveAccessories(items: Accessory[]) {
-  if (!isBrowser()) return;
-  localStorage.setItem(KEYS.accessories, JSON.stringify(items.map(recomputeAccessoryStatus)));
-  fire();
+
+export async function getAccessoryById(id: string): Promise<Accessory | undefined> {
+  const { data } = await supabase.from('accessories').select('*').eq('id', id).single();
+  return data ? recomputeAccessoryStatus(toCamelCaseAccessory(data)) : undefined;
 }
-export function getAccessoryById(id: string) {
-  return getAccessories().find((a) => a.id === id);
-}
-export function generateAccessoryId(): string {
-  const existing = new Set(getAccessories().map((a) => a.id));
+
+export async function generateAccessoryId(): Promise<string> {
+  const accs = await getAccessories();
+  const existing = new Set(accs.map((a) => a.id));
   let t = "";
   do { t = "ACC-" + Math.floor(1000 + Math.random() * 9000); } while (existing.has(t));
   return t;
 }
-export function upsertAccessory(a: Accessory) {
-  const list = getAccessories();
-  const norm = recomputeAccessoryStatus(a);
-  const i = list.findIndex((x) => x.id === norm.id);
-  if (i >= 0) list[i] = norm; else list.unshift(norm);
-  saveAccessories(list);
+
+export async function upsertAccessory(a: Accessory) {
+  await supabase.from('accessories').upsert([toSnakeCaseAccessory(recomputeAccessoryStatus(a))], { onConflict: 'id' });
+  fire();
 }
-export function deleteAccessory(id: string) {
-  saveAccessories(getAccessories().filter((a) => a.id !== id));
+
+export async function deleteAccessory(id: string) {
+  await supabase.from('accessories').delete().eq('id', id);
+  fire();
 }
+
 export function filterAccessories(items: Accessory[], f: { category?: string }) {
   return items.filter((a) => {
     if (f.category && a.category !== f.category) return false;
@@ -499,43 +742,71 @@ export type JustInItem =
   | { type: "phone"; item: UsedPhone }
   | { type: "accessory"; item: Accessory };
 
-export function getJustInItems(limit = 6): JustInItem[] {
-  const phones: JustInItem[] = getAvailablePhones().map((item) => ({ type: "phone" as const, item }));
-  const acc: JustInItem[] = getAccessories().map((item) => ({ type: "accessory" as const, item }));
+export async function getJustInItems(limit = 6): Promise<JustInItem[]> {
+  const availablePhones = await getAvailablePhones();
+  const accessories = await getAccessories();
+  const phones: JustInItem[] = availablePhones.map((item) => ({ type: "phone" as const, item }));
+  const acc: JustInItem[] = accessories.map((item) => ({ type: "accessory" as const, item }));
   return [...phones, ...acc]
     .sort((a, b) => Date.parse(b.item.dateAdded) - Date.parse(a.item.dateAdded))
     .slice(0, limit);
 }
 
-export function seedBuySellData() {
+// Seed Demo Data Function
+export async function seedDemoData() {
   if (!isBrowser()) return;
+  await initializeSettings();
+
+  const memos = await getMemos();
+  if (memos.length === 0) {
+    const m: Memo = {
+      token: "MEMO-1234",
+      customerName: "Demo Customer",
+      customerPhone: "01700000000",
+      device: "Demo Device",
+      note: "This is a demo memo",
+      date: new Date().toISOString().slice(0, 10),
+      createdAt: new Date().toISOString()
+    };
+    await addMemo(m);
+  }
+
   const today = new Date();
   const minusDays = (n: number) => {
     const d = new Date(today); d.setDate(d.getDate() - n);
     return d.toISOString();
   };
 
-  if (getPhones().length === 0) {
-    const phones: UsedPhone[] = [
+  const phones = await getPhones();
+  if (phones.length === 0) {
+    const seedPhones: UsedPhone[] = [
       { id: "PHN-1042", brand: "Samsung", model: "Galaxy S21", storage: "128GB", ram: "8GB", batteryHealth: 87, condition: "Good", purchasePrice: 18000, sellingPrice: 22000, status: "Listed", photoUrl: "", notes: "Minor scratch on back panel, screen flawless", dateAdded: minusDays(2), galleryUrls: [], shortDescription: "Clean unit, no dents. Screen and digitizer flawless. Original charger included." },
       { id: "PHN-1043", brand: "Apple", model: "iPhone 11", storage: "64GB", ram: "4GB", batteryHealth: 82, condition: "Excellent", purchasePrice: 26000, sellingPrice: 32000, status: "Listed", photoUrl: "", notes: "Original box and charger included", dateAdded: minusDays(4), galleryUrls: [], shortDescription: "Excellent condition, original box and charger included. Face ID and battery perform reliably." },
       { id: "PHN-1044", brand: "Xiaomi", model: "Redmi Note 11", storage: "128GB", ram: "6GB", batteryHealth: 91, condition: "Good", purchasePrice: 11000, sellingPrice: 14500, status: "Listed", photoUrl: "", notes: "", dateAdded: minusDays(10), galleryUrls: [], shortDescription: "Smooth daily-use device, battery health 91%. Minor wear on edges." },
-      { id: "PHN-1045", brand: "Oppo", model: "A78", storage: "128GB", ram: "8GB", batteryHealth: 95, condition: "Excellent", purchasePrice: 16000, sellingPrice: 19500, status: "Sold", photoUrl: "", notes: "", dateAdded: minusDays(20), soldDate: minusDays(5), galleryUrls: [], shortDescription: "Near-mint Oppo A78 with 95% battery health." },
-      { id: "PHN-1046", brand: "Vivo", model: "Y35", storage: "128GB", ram: "8GB", batteryHealth: 78, condition: "Fair", purchasePrice: 9000, sellingPrice: 12000, status: "Reserved", photoUrl: "", notes: "Reserved for customer pickup", dateAdded: minusDays(12), galleryUrls: [], shortDescription: "Budget-friendly daily driver. Light scuffs, fully functional." },
-      { id: "PHN-1047", brand: "Samsung", model: "Galaxy A54", storage: "256GB", ram: "8GB", batteryHealth: 94, condition: "Excellent", purchasePrice: 28000, sellingPrice: 33000, status: "Listed", photoUrl: "", notes: "", dateAdded: minusDays(1), galleryUrls: [], shortDescription: "Immaculate A54 with 256GB storage. AMOLED panel flawless, no scratches." },
     ];
-    savePhones(phones);
+    for(const p of seedPhones) {
+      await upsertPhone(p);
+    }
   }
 
-  if (getAccessories().length === 0) {
-    const acc: Accessory[] = [
+  const accs = await getAccessories();
+  if (accs.length === 0) {
+    const seedAcc: Accessory[] = [
       { id: "ACC-2031", name: "20000mAh Power Bank", category: "Power Bank", brand: "Anker", purchasePrice: 1400, sellingPrice: 1900, stockQuantity: 5, photoUrl: "", status: "In Stock", dateAdded: minusDays(3) },
       { id: "ACC-2032", name: "25W USB-C Fast Charger", category: "Charger", brand: "Samsung", purchasePrice: 700, sellingPrice: 1100, stockQuantity: 12, photoUrl: "", status: "In Stock", dateAdded: minusDays(8) },
-      { id: "ACC-2033", name: "Wired Earphones (Type-C)", category: "Headphones", brand: "Oppo", purchasePrice: 250, sellingPrice: 450, stockQuantity: 0, photoUrl: "", status: "Out of Stock", dateAdded: minusDays(15) },
-      { id: "ACC-2034", name: "Silicone Case — iPhone 13", category: "Case", brand: "Spigen", purchasePrice: 300, sellingPrice: 600, stockQuantity: 8, photoUrl: "", status: "In Stock", dateAdded: minusDays(5) },
-      { id: "ACC-2035", name: "Braided USB-C Cable 2m", category: "Cable", brand: "Anker", purchasePrice: 200, sellingPrice: 400, stockQuantity: 20, photoUrl: "", status: "In Stock", dateAdded: minusDays(11) },
-      { id: "ACC-2036", name: "Tempered Glass — Galaxy A54", category: "Screen Protector", brand: "Nillkin", purchasePrice: 80, sellingPrice: 200, stockQuantity: 30, photoUrl: "", status: "In Stock", dateAdded: minusDays(2) },
     ];
-    saveAccessories(acc);
+    for(const a of seedAcc) {
+      await upsertAccessory(a);
+    }
+  }
+
+  // --- Market Prices (still localStorage) ---
+  if (getMarketPrices().length === 0) {
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const minus = (n: number) => { const d = new Date(today); d.setDate(d.getDate() - n); return iso(d); };
+    const mkt: MarketPriceEntry[] = [
+      { entryId: "MKT-0201", brand: "Samsung", model: "Galaxy A54", partType: "Display", marketLow: 1800, marketHigh: 2400, notes: "OEM ~2200, copy ~1800", lastUpdated: minus(5) },
+    ];
+    saveMarketPrices(mkt);
   }
 }

@@ -5,7 +5,7 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
 import { useI18n } from "../lib/i18n";
-import { getAvailablePhones, seedBuySellData, type UsedPhone, type PhoneCondition } from "../lib/storage";
+import { getAvailablePhones, type UsedPhone, type PhoneCondition, getSettings } from "../lib/storage";
 import { shopWhatsAppLink, bdt } from "../lib/wa";
 
 export const Route = createFileRoute("/compare")({
@@ -39,16 +39,19 @@ type Row = {
 
 function ComparePage() {
   const { tr, lang } = useI18n();
-  const [, force] = useState(0);
+  const search = Route.useSearch();
+  const [phones, setPhones] = useState<UsedPhone[]>([]);
+  const [settings, setSettings] = useState<any>(null);
+
   useEffect(() => {
-    seedBuySellData();
-    const h = () => force((n) => n + 1);
+    const h = async () => {
+      setPhones(await getAvailablePhones());
+      setSettings(await getSettings());
+    };
+    h();
     window.addEventListener("repairshop:change", h);
     return () => window.removeEventListener("repairshop:change", h);
   }, []);
-
-  const search = Route.useSearch();
-  const phones = getAvailablePhones();
   const [id1, setId1] = useState(search.id1 || "");
   const [id2, setId2] = useState("");
 

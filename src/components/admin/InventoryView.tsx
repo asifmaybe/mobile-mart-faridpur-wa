@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, Search, AlertTriangle, XCircle, TrendingUp, Minus } from "lucide-react";
 import {
   PART_BRANDS, PART_CATEGORIES, adjustStock, deletePart, generatePartId,
@@ -11,8 +11,13 @@ import { useStorageRefresh } from "./useStorageRefresh";
 type Filter = "all" | "low" | "out";
 
 export function InventoryView({ tr, lang }: { tr: (k: any) => string; lang: "en" | "bn" }) {
-  useStorageRefresh();
-  const items = getInventory();
+  const [items, setItems] = useState<InventoryPart[]>([]);
+  useEffect(() => {
+    const fetch = async () => setItems(await getInventory());
+    fetch();
+    window.addEventListener("repairshop:change", fetch);
+    return () => window.removeEventListener("repairshop:change", fetch);
+  }, []);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [editing, setEditing] = useState<InventoryPart | null>(null);
@@ -140,10 +145,13 @@ function PartForm({
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const [p, setP] = useState<InventoryPart>(initial ?? {
-    partId: generatePartId(), name: "", category: "Display", compatibleBrand: "Samsung",
+    partId: "", name: "", category: "Display", compatibleBrand: "Samsung",
     compatibleModel: "", costPrice: 0, sellingPrice: 0, quantity: 0, reorderThreshold: 2,
     supplierNote: "", lastRestocked: today,
   });
+  useEffect(() => {
+    if (!initial) generatePartId().then((id) => setP((s) => ({ ...s, partId: id })));
+  }, [initial]);
   const set = (k: keyof InventoryPart, v: any) => setP((s) => ({ ...s, [k]: v }));
   const submit = (e: React.FormEvent) => {
     e.preventDefault();

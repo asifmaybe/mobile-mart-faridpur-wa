@@ -1,12 +1,22 @@
-import { useI18n } from "../lib/i18n";
 import { getSettings } from "../lib/storage";
+import { useEffect, useState } from "react";
+import { useI18n } from "../lib/i18n";
 import { Link } from "@tanstack/react-router";
 import { Smartphone, Phone, MapPin, Mail } from "lucide-react";
 import { WhatsAppIcon } from "./icons/WhatsAppIcon";
 
 export function Footer() {
   const { tr, lang } = useI18n();
-  const s = getSettings();
+  const [s, setS] = useState<any>(null);
+
+  useEffect(() => {
+    const refresh = async () => setS(await getSettings());
+    refresh();
+    window.addEventListener("repairshop:change", refresh);
+    return () => window.removeEventListener("repairshop:change", refresh);
+  }, []);
+
+  if (!s) return null;
   const name = s.shopName;
   return (
     <footer className="mt-16 px-4 pb-8">

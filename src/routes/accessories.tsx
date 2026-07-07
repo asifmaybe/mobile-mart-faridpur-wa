@@ -7,7 +7,7 @@ import { PhotoPlaceholder } from "../components/PhotoPlaceholder";
 import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
 import { useI18n } from "../lib/i18n";
 import {
-  ACCESSORY_CATEGORIES, filterAccessories, getAccessories, seedBuySellData,
+  ACCESSORY_CATEGORIES, filterAccessories, getAccessories, getSettings,
   type Accessory,
 } from "../lib/storage";
 import { shopWhatsAppLink, bdt } from "../lib/wa";
@@ -28,10 +28,16 @@ export const Route = createFileRoute("/accessories")({
 
 function AccessoriesPage() {
   const { tr, lang } = useI18n();
-  const [, force] = useState(0);
+  const [all, setAll] = useState<Accessory[]>([]);
+  const [settings, setSettings] = useState<any>(null);
+
   useEffect(() => {
-    seedBuySellData();
-    const h = () => force((n) => n + 1);
+    const h = async () => {
+      const accs = await getAccessories();
+      setAll(accs.filter((a) => a.status !== "Discontinued"));
+      setSettings(await getSettings());
+    };
+    h();
     window.addEventListener("repairshop:change", h);
     return () => window.removeEventListener("repairshop:change", h);
   }, []);
@@ -39,7 +45,6 @@ function AccessoriesPage() {
   const [category, setCategory] = useState("");
   const [mobileFilters, setMobileFilters] = useState(false);
 
-  const all = getAccessories().filter((a) => a.status !== "Discontinued");
   const categories = useMemo(() => Array.from(new Set(all.map((a) => a.category))).sort(), [all]);
   const filtered = useMemo(() => filterAccessories(all, { category: category || undefined }), [all, category]);
   const activeCount = category ? 1 : 0;
@@ -85,8 +90,9 @@ function AccessoriesPage() {
               />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filtered.map((a) => <AccessoryCard key={a.id} acc={a} tr={tr} />)}
-              </div>
+                {filtered.map((a) => (
+                  <AccessoryCard key={a.id} acc={a} tr={tr} settings={settings} />
+                ))}</div>
             )}
           </div>
         </section>
@@ -113,7 +119,7 @@ function AccessoriesPage() {
   );
 }
 
-export function AccessoryCard({ acc, tr }: { acc: Accessory; tr: (k: any) => string }) {
+export function AccessoryCard({ acc, tr, settings }: { acc: Accessory; tr: (k: any) => string; settings?: any }) {
   const inStock = acc.status === "In Stock";
   const msg = `Hi! I'd like to buy the ${acc.name} (${acc.brand}) listed for ${bdt(acc.sellingPrice)}. Is it available?`;
   return (

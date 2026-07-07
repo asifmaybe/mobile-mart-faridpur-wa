@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2, Printer, Search, X } from "lucide-react";
 import { WhatsAppIcon } from "../icons/WhatsAppIcon";
-import { getInventory, type InventoryPart, type Receipt, type ReceiptItem, type ReceiptTotals, getSettings } from "../../lib/storage";
+import { getInventory, type InventoryPart, type Receipt, type ReceiptItem, type ReceiptTotals, getCachedSettings } from "../../lib/storage";
 import { Modal } from "../../lib/ui";
 
 export function emptyItem(): ReceiptItem {
@@ -202,7 +202,10 @@ function Row({ label, value }: { label: string; value: number }) {
 
 function PartPickerModal({ onClose, onPick, tr, lang }: { onClose: () => void; onPick: (p: InventoryPart) => void; tr: (k: any) => string; lang: "en" | "bn" }) {
   const [q, setQ] = useState("");
-  const inv = getInventory();
+  const [inv, setInv] = useState<InventoryPart[]>([]);
+  useEffect(() => {
+    getInventory().then(setInv);
+  }, []);
   const filtered = inv.filter((p) => {
     if (!q.trim()) return true;
     const s = q.toLowerCase();
@@ -235,7 +238,7 @@ function PartPickerModal({ onClose, onPick, tr, lang }: { onClose: () => void; o
 }
 
 export function openReceiptPrint(r: Receipt) {
-  const settings = getSettings();
+  const settings = getCachedSettings();
   const w = window.open("", "_blank", "width=480,height=700");
   if (!w) return;
   const rows = r.items.filter((i) => i.description.trim()).map((i) => `
@@ -283,7 +286,7 @@ export function openReceiptPrint(r: Receipt) {
 }
 
 export function buildWhatsAppText(r: Receipt) {
-  const settings = getSettings();
+  const settings = getCachedSettings();
   return [
     `${settings.shopName} — Receipt ${r.receiptNo}`,
     `Date: ${r.date}`,

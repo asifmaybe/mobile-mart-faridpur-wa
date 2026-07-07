@@ -9,13 +9,13 @@ import {
 import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
 import { useI18n } from "../lib/i18n";
 import {
-  addMemo, addReceipt, calculateReceiptTotals, getMemos, getSettings, saveSettings, isAuthed,
+  addMemo, addReceipt, calculateReceiptTotals, getMemos, getSettings, getCachedSettings, saveSettings, isAuthed,
   generateReceiptNo, seedDemoData, setAuthed, getPhones, getAccessories,
   type Memo, type Receipt, type ReceiptItem, updateMemo, deleteMemo, generateToken
 } from "../lib/storage";
 import { showToast, Modal } from "../lib/ui";
 import { MarketPricesView } from "../components/admin/MarketPriceLookup";
-import { ReceiptMakerView } from "../components/admin/ReceiptMaker";
+
 import { emptyItem, openReceiptPrint, buildWhatsAppText, ReceiptItemsList, ReceiptSummaryCard } from "../components/admin/ReceiptItemsPanel";
 import { BuySellView } from "../components/admin/BuySellView";
 
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tab = "dashboard" | "new" | "memos" | "buysell" | "market" | "receipts" | "settings";
+type Tab = "dashboard" | "new" | "memos" | "buysell" | "market" | "settings";
 
 function AdminPage() {
   const { tr, lang } = useI18n();
@@ -48,9 +48,9 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [p, setP] = useState("");
   const [err, setErr] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const s = getSettings();
+    const s = await getSettings();
     if (u === s.adminUsername && p === s.adminPassword) {
       setAuthed(true);
       onLogin();
@@ -99,7 +99,7 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
     { id: "memos",        Icon: ClipboardList,   label: tr("allMemos") },
     { id: "buysell",      Icon: ShoppingCart,    label: tr("inventoryTitle") },
     { id: "market",       Icon: TrendingUp,      label: tr("marketPriceTrackerTitle") },
-    { id: "receipts",     Icon: ReceiptIcon,     label: tr("receiptMakerTitle") },
+
     { id: "settings",     Icon: SettingsIcon,    label: tr("settings") },
   ];
 
@@ -144,7 +144,7 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
           {tab === "memos" && <AllMemos tr={tr} lang={lang} />}
           {tab === "buysell" && <BuySellView tr={tr} lang={lang} />}
           {tab === "market" && <MarketPricesView tr={tr} lang={lang} />}
-          {tab === "receipts" && <ReceiptMakerView tr={tr} lang={lang} />}
+
           {tab === "settings" && <SettingsView tr={tr} lang={lang} />}
         </main>
       </div>
@@ -155,7 +155,7 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
 function useMemosState() {
   const [memos, setMemos] = useState<Memo[]>([]);
   useEffect(() => {
-    const refresh = () => setMemos(getMemos());
+    const refresh = async () => setMemos(await getMemos());
     refresh();
     window.addEventListener("repairshop:change", refresh);
     return () => window.removeEventListener("repairshop:change", refresh);
@@ -172,11 +172,12 @@ function Dashboard({ tr, go }: { tr: (k: any) => string; lang: "en" | "bn"; go: 
   const [lowStockAcc, setLowStockAcc] = useState(0);
 
   useEffect(() => {
-    const refresh = () => {
-      const allPhones = getPhones();
+    const refresh = async () => {
+      const allPhones = await getPhones();
       setPhonesAvailable(allPhones.filter(p => p.status === "Listed").length);
       setPhonesSold(allPhones.filter(p => p.status === "Sold").length);
-      setLowStockAcc(getAccessories().filter(a => a.stockQuantity <= 2 && a.status !== "Discontinued").length);
+      const accs = await getAccessories();
+      setLowStockAcc(accs.filter(a => a.stockQuantity <= 2 && a.status !== "Discontinued").length);
     };
     refresh();
     window.addEventListener("repairshop:change", refresh);
@@ -262,14 +263,14 @@ function NewMemo({ tr, lang, go }: { tr: (k: any) => string; lang: "en" | "bn"; 
     return true;
   };
 
-  const createMemoAndReceipt = (): { memo: Memo; receipt: Receipt | null } | null => {
+  const createMemoAndReceipt = async (): Promise<{ memo: Memo; receipt: Receipt | null } | null> => {
     if (!validate()) return null;
-    const memo: Memo = { ...form, token: generateToken(), createdAt: new Date().toISOString() };
+    const memo: Memo = { ...form, token: await generateToken(), createdAt: new Date().toISOString() };
     addMemo(memo);
     const hasItems = items.some((i) => i.description.trim());
     let receipt: Receipt | null = null;
     if (hasItems) {
-      const receiptNo = generateReceiptNo();
+      const receiptNo = await generateReceiptNo();
       receipt = {
         id: receiptNo + "-" + Date.now(),
         receiptNo, date: today,
@@ -278,13 +279,13 @@ function NewMemo({ tr, lang, go }: { tr: (k: any) => string; lang: "en" | "bn"; 
         items, ...totals, taxRate, notes: receiptNotes,
         createdAt: new Date().toISOString(),
       };
-      addReceipt(receipt);
+      addReceipt(receipt as Receipt);
     }
     return { memo, receipt };
   };
 
-  const saveMemo = () => {
-    const res = createMemoAndReceipt();
+  const saveMemo = async () => {
+    const res = await createMemoAndReceipt();
     if (!res) return;
     setCreated(res);
     showToast(tr("memoCreated"), "success");
@@ -469,9 +470,13 @@ function UpdateMemoModal({ memo, onClose, tr, lang }: { memo: Memo; onClose: () 
 }
 
 function SettingsView({ tr, lang }: { tr: (k: any) => string; lang: "en" | "bn" }) {
-  const [s, setS] = useState(getSettings());
+  const [s, setS] = useState(getCachedSettings());
   const [newPass, setNewPass] = useState("");
-  const setF = (k: keyof ReturnType<typeof getSettings>, v: string) => setS((x) => ({ ...x, [k]: v }));
+  const setF = (k: keyof ReturnType<typeof getCachedSettings>, v: string) => setS((x) => ({ ...x, [k]: v }));
+
+  useEffect(() => {
+    getSettings().then(setS);
+  }, []);
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();

@@ -21,15 +21,18 @@ const todayISO = () => new Date().toISOString();
 
 export function BuySellView({ tr }: { tr: (k: any) => string; lang: "en" | "bn" }) {
   const [sub, setSub] = useState<"phones" | "accessories">("phones");
-  const [, force] = useState(0);
-  useEffect(() => {
-    const h = () => force((n) => n + 1);
-    window.addEventListener("repairshop:change", h);
-    return () => window.removeEventListener("repairshop:change", h);
-  }, []);
+  const [phones, setPhones] = useState<UsedPhone[]>([]);
+  const [accs, setAccs] = useState<Accessory[]>([]);
 
-  const phones = getPhones();
-  const accs = getAccessories();
+  useEffect(() => {
+    const fetch = async () => {
+      setPhones(await getPhones());
+      setAccs(await getAccessories());
+    };
+    fetch();
+    window.addEventListener("repairshop:change", fetch);
+    return () => window.removeEventListener("repairshop:change", fetch);
+  }, []);
 
   const listedCount = phones.filter((p) => p.status !== "Sold").length + accs.filter((a) => a.status !== "Discontinued").length;
   const soldPhones = phones.filter((p) => p.status === "Sold");
@@ -229,11 +232,14 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
   onClose: () => void; onSave: (p: UsedPhone) => void;
 }) {
   const [p, setP] = useState<UsedPhone>(initial ?? {
-    id: generatePhoneId(), brand: "Samsung", model: "", storage: "", ram: "",
+    id: "", brand: "Samsung", model: "", storage: "", ram: "",
     batteryHealth: 100, condition: "Good", purchasePrice: 0, sellingPrice: 0,
     status: "Draft", photoUrl: "", notes: "", dateAdded: todayISO(),
     galleryUrls: [], shortDescription: "", imei: "", soldDate: "", warrantyTerms: "",
   });
+  useEffect(() => {
+    if (!initial) generatePhoneId().then((id) => setP((s) => ({ ...s, id })));
+  }, [initial]);
   const set = <K extends keyof UsedPhone>(k: K, v: UsedPhone[K]) => setP((s) => ({ ...s, [k]: v }));
 
   const gallery = p.galleryUrls ?? [];
@@ -470,10 +476,13 @@ function AccessoryForm({ tr, initial, onClose, onSave }: {
   onClose: () => void; onSave: (a: Accessory) => void;
 }) {
   const [a, setA] = useState<Accessory>(initial ?? {
-    id: generateAccessoryId(), name: "", category: "Power Bank", brand: "",
+    id: "", name: "", category: "Power Bank", brand: "",
     purchasePrice: 0, sellingPrice: 0, stockQuantity: 0, photoUrl: "",
     status: "In Stock", dateAdded: todayISO(),
   });
+  useEffect(() => {
+    if (!initial) generateAccessoryId().then((id) => setA((s) => ({ ...s, id })));
+  }, [initial]);
   const set = <K extends keyof Accessory>(k: K, v: Accessory[K]) => setA((s) => ({ ...s, [k]: v }));
 
   const submit = (e: React.FormEvent) => {

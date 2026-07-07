@@ -10,7 +10,14 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const settings = getSettings();
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    const refresh = async () => setSettings(await getSettings());
+    refresh();
+    window.addEventListener("repairshop:change", refresh);
+    return () => window.removeEventListener("repairshop:change", refresh);
+  }, []);
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 20);
@@ -26,6 +33,8 @@ export function Navbar() {
     { to: "/accessories", key: "accessories" },
     { to: "/#contact", key: "contact" },
   ];
+
+  if (!settings) return null;
 
   return (
     <header

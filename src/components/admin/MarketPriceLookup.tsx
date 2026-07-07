@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, AlertTriangle, TrendingUp, X } from "lucide-react";
 import {
   PART_BRANDS, MARKET_PART_TYPES, daysSince, deleteMarketEntry, generateMarketEntryId,
@@ -43,7 +43,11 @@ function MarketPricesPanel({ tr, lang, asView, initialBrand, initialModel, initi
   const [adding, setAdding] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
-  const inventory = getInventory();
+  const [inventory, setInventory] = useState<any[]>([]);
+  useEffect(() => {
+    getInventory().then(setInventory);
+  }, []);
+
   const results = useMemo(() => {
     const list = searchMarketPrices(brand || undefined, q, partType || undefined);
     // sort: model match first

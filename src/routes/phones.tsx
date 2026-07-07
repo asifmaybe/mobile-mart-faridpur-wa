@@ -9,7 +9,7 @@ import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
 import { PhoneDetailModal } from "../components/PhoneDetailModal";
 import { useI18n } from "../lib/i18n";
 import {
-  filterPhones, getAvailablePhones, isJustIn, seedBuySellData,
+  filterPhones, getAvailablePhones, isJustIn, getSettings,
   type PhoneCondition, type UsedPhone,
 } from "../lib/storage";
 import { shopWhatsAppLink, bdt } from "../lib/wa";
@@ -31,10 +31,15 @@ const CONDITIONS: PhoneCondition[] = ["Excellent", "Good", "Fair"];
 
 function PhonesPage() {
   const { tr, lang } = useI18n();
-  const [, force] = useState(0);
+  const [all, setAll] = useState<UsedPhone[]>([]);
+  const [settings, setSettings] = useState<any>(null);
+
   useEffect(() => {
-    seedBuySellData();
-    const h = () => force((n) => n + 1);
+    const h = async () => {
+      setAll(await getAvailablePhones());
+      setSettings(await getSettings());
+    };
+    h();
     window.addEventListener("repairshop:change", h);
     return () => window.removeEventListener("repairshop:change", h);
   }, []);
@@ -44,9 +49,6 @@ function PhonesPage() {
   const [minPrice, setMinPrice] = useState<string>("");
   const [maxPrice, setMaxPrice] = useState<string>("");
   const [mobileFilters, setMobileFilters] = useState(false);
-
-  const all = getAvailablePhones();
-  console.log("[PhonesPage] all:", all);
   const brands = useMemo(() => Array.from(new Set(all.map((p) => p.brand))).sort(), [all]);
 
   const filtered = useMemo(() => filterPhones(all, {
@@ -116,7 +118,7 @@ function PhonesPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filtered.map((p) => (
-                  <PhoneCard key={p.id} phone={p} tr={tr} lang={lang} onViewDetails={openDetail} />
+                  <PhoneCard key={p.id} phone={p} tr={tr} lang={lang} onViewDetails={openDetail} settings={settings} />
                 ))}
               </div>
             )}
@@ -170,13 +172,14 @@ function PhonesPage() {
 }
 
 export function PhoneCard({
-  phone, tr, lang, onViewDetails,
+  phone, tr, lang, onViewDetails, settings
 }: {
   phone: UsedPhone;
   tr: (k: any) => string;
   lang: "en" | "bn";
   onViewDetails?: (p: UsedPhone, trigger: HTMLElement | null) => void;
   layoutIdPrefix?: string; // kept for API compat, unused
+  settings?: any;
 }) {
   const justIn = isJustIn(phone.dateAdded);
   const msg = `Hi! I'm interested in the ${phone.brand} ${phone.model} (${phone.storage}/${phone.ram}) listed for ${bdt(phone.sellingPrice)}. Is it still available?`;
