@@ -32,16 +32,29 @@ const CONDITIONS: PhoneCondition[] = ["Excellent", "Good", "Fair"];
 function PhonesPage() {
   const { tr, lang } = useI18n();
   const [all, setAll] = useState<UsedPhone[]>([]);
+  const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<any>(getCachedSettings);
 
   useEffect(() => {
+    let cancelled = false;
     const h = async () => {
-      setAll(await getAvailablePhones());
-      setSettings(await getSettings());
+      // Parallel fetch — phones and settings load simultaneously
+      const [phones, cfg] = await Promise.all([
+        getAvailablePhones(),
+        getSettings(),
+      ]);
+      if (!cancelled) {
+        setAll(phones);
+        setSettings(cfg);
+        setLoading(false);
+      }
     };
     h();
     window.addEventListener("repairshop:change", h);
-    return () => window.removeEventListener("repairshop:change", h);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("repairshop:change", h);
+    };
   }, []);
 
   const [brand, setBrand] = useState("");
@@ -109,7 +122,24 @@ function PhonesPage() {
         {/* Grid */}
         <section className="px-4">
           <div className="mx-auto max-w-6xl">
-            {filtered.length === 0 ? (
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="glass overflow-hidden flex flex-col" style={{ borderRadius: 22 }}>
+                    <div className="skeleton aspect-[3/4] md:aspect-[4/3] m-3" style={{ borderRadius: 16 }} />
+                    <div className="p-4 pt-2 flex flex-col gap-3">
+                      <div className="skeleton h-5 w-3/4" />
+                      <div className="skeleton h-4 w-full" />
+                      <div className="skeleton h-7 w-1/2" />
+                      <div className="flex gap-2">
+                        <div className="skeleton h-11 flex-1" />
+                        <div className="skeleton h-11 flex-1" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
               <EmptyState
                 icon={activeCount > 0 ? Smartphone : PackageX}
                 message={tr("noPhonesMatch")}
@@ -194,7 +224,7 @@ export function PhoneCard({
       transition={{ type: "spring", stiffness: 400, damping: 32 }}
       whileHover={reduceMotion ? {} : { y: -3, transition: { type: "spring", stiffness: 500, damping: 30 } }}
     >
-      <div className="relative aspect-[4/3] bg-white/30 rounded-2xl overflow-hidden m-3">
+      <div className="relative aspect-[3/4] md:aspect-[4/3] bg-white/30 rounded-2xl overflow-hidden m-3">
         <PhotoPlaceholder url={phone.photoUrl} alt={`${phone.brand} ${phone.model}`} />
         {justIn && (
           <span className="absolute top-2 right-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border bg-accent-orange/25 text-accent-orange border-accent-orange/50">

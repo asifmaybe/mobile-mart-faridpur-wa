@@ -52,14 +52,24 @@ function Home() {
   const [settings, setSettings] = useState<any>(getCachedSettings);
   const [featuredPhones, setFeaturedPhones] = useState<UsedPhone[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
+  const [loadingPhones, setLoadingPhones] = useState(true);
+  const [loadingAccs, setLoadingAccs] = useState(true);
   const [detail, setDetail] = useState<UsedPhone | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const h = async () => {
-      setSettings(await getSettings());
+      // All three fetches fire simultaneously — no waterfalls
+      const [cfg, avail, fetchedAccs] = await Promise.all([
+        getSettings(),
+        getAvailablePhones(),
+        getAccessories(),
+      ]);
+      if (cancelled) return;
 
-      const avail = await getAvailablePhones();
+      setSettings(cfg);
+
       const sortedPhones = avail.sort((a, b) => {
         const aIsJustIn = isJustIn(a.dateAdded);
         const bIsJustIn = isJustIn(b.dateAdded);
@@ -68,14 +78,18 @@ function Home() {
         return Date.parse(b.dateAdded) - Date.parse(a.dateAdded);
       });
       setFeaturedPhones(sortedPhones.slice(0, 6));
+      setLoadingPhones(false);
 
-      const fetchedAccs = await getAccessories();
       const sortedAccs = fetchedAccs.sort((a, b) => Date.parse(b.dateAdded) - Date.parse(a.dateAdded));
       setAccessories(sortedAccs.slice(0, 4));
+      setLoadingAccs(false);
     };
     h();
     window.addEventListener("repairshop:change", h);
-    return () => window.removeEventListener("repairshop:change", h);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("repairshop:change", h);
+    };
   }, []);
 
 
@@ -123,27 +137,47 @@ function Home() {
         </section>
 
         {/* FEATURED PHONES */}
-        {featuredPhones.length > 0 && (
-          <section className="px-4 py-8">
-            <div className="mx-auto max-w-6xl">
-              <div className="text-center mb-6">
-                <div className="label-caps">{tr("featuredPhonesEyebrow")}</div>
-                <h2 className={`text-3xl md:text-4xl font-bold mt-2 ${lang === "bn" ? "bn" : ""}`}>{tr("featuredPhonesTitle")}</h2>
-                <p className={`text-text-secondary text-sm mt-1 ${lang === "bn" ? "bn" : ""}`}>{tr("featuredPhonesSubtitle")}</p>
-              </div>
+        {/* FEATURED PHONES */}
+        <section className="px-4 py-8">
+          <div className="mx-auto max-w-6xl">
+            <div className="text-center mb-6">
+              <div className="label-caps">{tr("featuredPhonesEyebrow")}</div>
+              <h2 className={`text-3xl md:text-4xl font-bold mt-2 ${lang === "bn" ? "bn" : ""}`}>{tr("featuredPhonesTitle")}</h2>
+              <p className={`text-text-secondary text-sm mt-1 ${lang === "bn" ? "bn" : ""}`}>{tr("featuredPhonesSubtitle")}</p>
+            </div>
+            {loadingPhones ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {featuredPhones.map((p) => (
-                  <PhoneCard key={p.id} phone={p} tr={tr} lang={lang} onViewDetails={openDetail} layoutIdPrefix="featured" />
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="glass overflow-hidden flex flex-col" style={{ borderRadius: 22 }}>
+                    <div className="skeleton aspect-[4/3] m-3" style={{ borderRadius: 16 }} />
+                    <div className="p-4 pt-2 flex flex-col gap-3">
+                      <div className="skeleton h-5 w-3/4" />
+                      <div className="skeleton h-4 w-full" />
+                      <div className="skeleton h-7 w-1/2" />
+                      <div className="flex gap-2">
+                        <div className="skeleton h-11 flex-1" />
+                        <div className="skeleton h-11 flex-1" />
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
-              <div className="mt-6 text-center">
-                <Link to="/phones" className="btn-glass">
-                  {tr("viewAllPhones")}
-                </Link>
-              </div>
-            </div>
-          </section>
-        )}
+            ) : featuredPhones.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {featuredPhones.map((p) => (
+                    <PhoneCard key={p.id} phone={p} tr={tr} lang={lang} onViewDetails={openDetail} layoutIdPrefix="featured" />
+                  ))}
+                </div>
+                <div className="mt-6 text-center">
+                  <Link to="/phones" className="btn-glass">
+                    {tr("viewAllPhones")}
+                  </Link>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </section>
 
         {/* JUST IN */}
         <JustInFeed />
@@ -175,29 +209,45 @@ function Home() {
 
 
         {/* ACCESSORIES HIGHLIGHT */}
-        {accessories.length > 0 && (
-          <section className="px-4 py-8">
-            <div className="mx-auto max-w-6xl">
-              <div className="text-center mb-6">
-                <div className="label-caps">{tr("accessoriesEyebrow")}</div>
-                <h2 className={`text-3xl md:text-4xl font-bold mt-2 ${lang === "bn" ? "bn" : ""}`}>{tr("accessoriesHighlightTitle")}</h2>
-              </div>
+        <section className="px-4 py-8 lazy-section">
+          <div className="mx-auto max-w-6xl">
+            <div className="text-center mb-6">
+              <div className="label-caps">{tr("accessoriesEyebrow")}</div>
+              <h2 className={`text-3xl md:text-4xl font-bold mt-2 ${lang === "bn" ? "bn" : ""}`}>{tr("accessoriesHighlightTitle")}</h2>
+            </div>
+            {loadingAccs ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {accessories.map((a) => (
-                  <AccessoryCard key={a.id} acc={a} tr={tr} />
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="glass overflow-hidden flex flex-col" style={{ borderRadius: 22 }}>
+                    <div className="skeleton aspect-[4/3]" style={{ borderRadius: 0 }} />
+                    <div className="p-4 flex flex-col gap-3">
+                      <div className="skeleton h-5 w-3/4" />
+                      <div className="skeleton h-4 w-1/2" />
+                      <div className="skeleton h-7 w-1/3" />
+                      <div className="skeleton h-11 w-full" />
+                    </div>
+                  </div>
                 ))}
               </div>
-              <div className="mt-6 text-center">
-                <Link to="/accessories" className="btn-glass">
-                  {tr("viewAllAccessories")}
-                </Link>
-              </div>
-            </div>
-          </section>
-        )}
+            ) : accessories.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {accessories.map((a) => (
+                    <AccessoryCard key={a.id} acc={a} tr={tr} />
+                  ))}
+                </div>
+                <div className="mt-6 text-center">
+                  <Link to="/accessories" className="btn-glass">
+                    {tr("viewAllAccessories")}
+                  </Link>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </section>
 
         {/* TRUST & STATS */}
-        <section className="px-4 py-12">
+        <section className="px-4 py-12 lazy-section">
           <div className="mx-auto max-w-6xl glass p-6 md:p-10">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 text-center">
               {[
@@ -235,7 +285,7 @@ function Home() {
 
 
         {/* REVIEWS */}
-        <section className="px-4 py-12">
+        <section className="px-4 py-12 lazy-section">
           <div className="mx-auto max-w-6xl">
             <div className="text-center mb-8">
               <h2 className={`text-3xl md:text-4xl font-bold ${lang === "bn" ? "bn" : ""}`}>{tr("reviews")}</h2>
@@ -260,7 +310,7 @@ function Home() {
         </section>
 
         {/* FAQ */}
-        <section className="px-4 py-12">
+        <section className="px-4 py-12 lazy-section">
           <div className="mx-auto max-w-3xl">
             <div className="text-center mb-8">
               <h2 className={`text-3xl md:text-4xl font-bold ${lang === "bn" ? "bn" : ""}`}>{tr("faq")}</h2>

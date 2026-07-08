@@ -29,9 +29,16 @@
 }
 
 html {
-  /* Always reserve scrollbar space so fixed header never shifts on route change */
+  /* Reserve scrollbar space on desktop only to avoid gap on mobile */
   scrollbar-gutter: stable;
   overflow-y: scroll;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  html {
+    scrollbar-gutter: auto;
+    overflow-y: auto;
+  }
 }
 
 html, body {
@@ -44,14 +51,12 @@ html, body {
 
 body {
   background:
-    radial-gradient(ellipse 60% 50% at 8% 15%, rgba(178, 232, 206, 0.55) 0%, transparent 60%),
-    radial-gradient(ellipse 55% 45% at 35% 8%, rgba(255, 243, 191, 0.55) 0%, transparent 60%),
     radial-gradient(ellipse 65% 55% at 78% 22%, rgba(186, 222, 247, 0.60) 0%, transparent 62%),
     radial-gradient(ellipse 60% 55% at 95% 70%, rgba(220, 206, 245, 0.50) 0%, transparent 60%),
     radial-gradient(ellipse 70% 60% at 25% 90%, rgba(198, 240, 220, 0.45) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 55% at 65% 95%, rgba(232, 222, 250, 0.45) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 8% 15%, rgba(178, 232, 206, 0.55) 0%, transparent 60%),
     #FFFFFF;
-  background-attachment: fixed;
+  /* NOTE: background-attachment:fixed removed — it breaks GPU compositing on mobile */
 }
 
 body::before {
@@ -67,6 +72,7 @@ body::before {
   animation: drift 32s ease-in-out infinite alternate;
   pointer-events: none;
   filter: blur(20px);
+  will-change: transform;  /* GPU-composite this layer */
 }
 
 @keyframes drift {
@@ -85,6 +91,7 @@ body::before {
 @utility glass {
   background: rgba(255, 255, 255, 0.62);
   backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.78);
   border-top-color: rgba(255, 255, 255, 0.95);
   border-radius: 22px;
@@ -93,6 +100,7 @@ body::before {
     0 2px 8px rgba(80, 70, 160, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+  will-change: transform;
 }
 
 @utility glass-soft {
@@ -131,11 +139,14 @@ body::before {
   gap: 8px;
   cursor: pointer;
   min-height: 48px;
+  touch-action: manipulation;  /* eliminate 300ms tap delay */
+  -webkit-tap-highlight-color: transparent;
 }
 
 @utility btn-glass {
   background: rgba(255, 255, 255, 0.70);
   backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.88);
   border-top-color: rgba(255, 255, 255, 0.98);
   border-radius: 16px;
@@ -150,6 +161,8 @@ body::before {
   gap: 8px;
   cursor: pointer;
   min-height: 48px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @utility btn-danger {
@@ -265,8 +278,39 @@ html[lang="bn"] body { line-height: 1.7; }
 .no-scrollbar { scrollbar-width: none; }
 
 .just-in-mask {
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
-          mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  /* Fade-edge mask — only on larger screens where there's overflow to hint */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+}
+@media (max-width: 639px) {
+  /* On mobile the scroller fills the full width; no edge mask needed */
+  .just-in-mask {
+    -webkit-mask-image: none;
+            mask-image: none;
+  }
+}
+
+/* ===== Skeleton shimmer ===== */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.55) 25%,
+    rgba(255,255,255,0.85) 50%,
+    rgba(255,255,255,0.55) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 14px;
+}
+
+/* Sections that are well below the fold can skip rendering until near viewport */
+.lazy-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 400px;
 }
 
 @media print {
@@ -427,6 +471,13 @@ html[lang="bn"] body { line-height: 1.7; }
   [class*="svc-click-"], [class*="svc-idle-"] {
     animation: none !important;
     transition: none !important;
+  }
+  body::before {
+    animation: none !important;
+  }
+  .skeleton {
+    animation: none !important;
+    background: rgba(255,255,255,0.6);
   }
 }
 

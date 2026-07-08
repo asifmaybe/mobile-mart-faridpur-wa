@@ -64,7 +64,7 @@ export function BuySellView({ tr }: { tr: (k: any) => string; lang: "en" | "bn" 
 
   return (
     <div className="space-y-4">
-      <h1 className="hidden md:block text-2xl font-bold inline-flex items-center gap-2">{tr("buySellTitle")}</h1>
+      <h1 className="hidden md:inline-flex text-2xl font-bold items-center gap-2">{tr("buySellTitle")}</h1>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {summary.map((c, i) => (

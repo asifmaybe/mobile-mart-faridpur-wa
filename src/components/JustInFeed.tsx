@@ -21,9 +21,41 @@ function itemMsg(j: JustInItem) {
     : `Hi! I'd like to buy the ${j.item.name} listed for ${bdt(j.item.sellingPrice)}.`;
 }
 
+/** Skeleton placeholder cards shown while data loads */
+function JustInSkeleton() {
+  return (
+    <section className="px-4 mt-14 mb-14">
+      <div className="mx-auto max-w-6xl">
+        <div className="flex items-end justify-between gap-3 mb-5">
+          <div>
+            <div className="skeleton h-8 w-48 mb-2" />
+            <div className="skeleton h-4 w-64" />
+          </div>
+        </div>
+        <div className="flex gap-4 overflow-hidden">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="glass shrink-0 w-[68%] sm:w-[48%] md:w-[32%] lg:w-[24%] overflow-hidden"
+              style={{ borderRadius: 22, opacity: 1 - i * 0.18 }}
+            >
+              <div className="skeleton aspect-[3/4]" style={{ borderRadius: 0 }} />
+              <div className="p-3 space-y-2">
+                <div className="skeleton h-4 w-3/4" />
+                <div className="skeleton h-6 w-1/2" />
+                <div className="skeleton h-11 w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function JustInFeed() {
   const { tr, lang } = useI18n();
-  const [items, setItems] = useState<JustInItem[]>([]);
+  const [items, setItems] = useState<JustInItem[] | null>(null); // null = loading
   const scrollerRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
   const [detail, setDetail] = useState<UsedPhone | null>(null);
@@ -32,22 +64,36 @@ export function JustInFeed() {
   const [settings, setSettings] = useState<any>(getCachedSettings);
 
   useEffect(() => {
+    let cancelled = false;
     const refresh = async () => {
-      setItems(await getJustInItems(6));
-      setSettings(await getSettings());
+      // Parallel fetch — settings and items simultaneously
+      const [newItems, newSettings] = await Promise.all([
+        getJustInItems(6),
+        getSettings(),
+      ]);
+      if (!cancelled) {
+        setItems(newItems);
+        setSettings(newSettings);
+      }
     };
     refresh();
     window.addEventListener("repairshop:change", refresh);
-    return () => window.removeEventListener("repairshop:change", refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("repairshop:change", refresh);
+    };
   }, []);
-
-  if (items.length === 0) return null;
 
   const nudge = (dir: -1 | 1) => {
     const el = scrollerRef.current;
     if (!el) return;
     el.scrollBy({ left: dir * Math.min(360, el.clientWidth * 0.8), behavior: "smooth" });
   };
+
+  // Show skeleton while loading
+  if (items === null) return <JustInSkeleton />;
+  // Hide section if no items
+  if (items.length === 0) return null;
 
   return (
     <section className="px-4 mt-14 mb-14">
@@ -60,8 +106,22 @@ export function JustInFeed() {
             <p className={`text-text-secondary text-sm mt-1 ${lang === "bn" ? "bn" : ""}`}>{tr("justInSubtitle")}</p>
           </div>
           <div className="hidden md:flex items-center gap-2">
-            <button onClick={() => nudge(-1)} aria-label="Previous" className="w-10 h-10 rounded-full glass-pill grid place-items-center"><ChevronLeft size={18} /></button>
-            <button onClick={() => nudge(1)} aria-label="Next" className="w-10 h-10 rounded-full glass-pill grid place-items-center"><ChevronRight size={18} /></button>
+            <button
+              onClick={() => nudge(-1)}
+              aria-label="Previous"
+              className="w-10 h-10 rounded-full glass-pill grid place-items-center"
+              style={{ touchAction: "manipulation" }}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              onClick={() => nudge(1)}
+              aria-label="Next"
+              className="w-10 h-10 rounded-full glass-pill grid place-items-center"
+              style={{ touchAction: "manipulation" }}
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
 
@@ -70,19 +130,21 @@ export function JustInFeed() {
             <div
               ref={scrollerRef}
               className="flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory no-scrollbar"
-              style={{ scrollPaddingLeft: "1rem" }}
+              style={{ scrollPaddingLeft: "1rem", willChange: "scroll-position" }}
             >
               {items.map((j) => {
                 const isPhone = j.type === "phone";
-                const layoutId = isPhone && !reduceMotion ? `phone-card-${j.item.id}` : undefined;
                 return (
+                  // layoutId removed — it triggers costly FLIP on every list re-render
                   <motion.article
-                    layoutId={layoutId}
                     key={`${j.type}-${j.item.id}`}
                     className="glass shrink-0 w-[68%] sm:w-[48%] md:w-[32%] lg:w-[24%] snap-start overflow-hidden flex flex-col"
                     style={{ borderRadius: 22 }}
+                    initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   >
-                    <div className="aspect-[4/3] bg-white/30 relative">
+                    <div className="aspect-[3/4] bg-white/30 relative">
                       <PhotoPlaceholder url={j.item.photoUrl} alt={itemTitle(j)} />
                       <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-white/70 text-text-secondary border-white/80">
                         {itemBadge(j)}

@@ -24,7 +24,7 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [activeImg, setActiveImg] = useState(0);
-  
+
 
   useEffect(() => { if (open) setActiveImg(0); }, [open, phone?.id]);
 
@@ -157,42 +157,42 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
                   <PhotoGallery phone={phone} activeImg={activeImg} setActiveImg={setActiveImg} label={tr("photoGalleryLabel")} />
 
                   <div className="px-2 pt-4 pb-5 space-y-4">
-                  <div className="flex items-start justify-between gap-3 pr-12">
-                    <div>
-                      <h2 id={`phone-detail-title-${phone.id}`} className="text-xl sm:text-2xl font-extrabold leading-tight">
-                        {phone.brand} {phone.model}
-                      </h2>
-                      <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-white/70 text-text-secondary border-white/80">
-                          {phone.condition}
-                        </span>
-                        {isJustIn(phone.dateAdded) && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border bg-accent-orange/25 text-accent-orange border-accent-orange/50">
-                            <Flame size={11} strokeWidth={1.75} /> {tr("justIn")}
+                    <div className="flex items-start justify-between gap-3 pr-12">
+                      <div>
+                        <h2 id={`phone-detail-title-${phone.id}`} className="text-xl sm:text-2xl font-extrabold leading-tight">
+                          {phone.brand} {phone.model}
+                        </h2>
+                        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-white/70 text-text-secondary border-white/80">
+                            {phone.condition}
                           </span>
-                        )}
+                          {isJustIn(phone.dateAdded) && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border bg-accent-orange/25 text-accent-orange border-accent-orange/50">
+                              <Flame size={11} strokeWidth={1.75} /> {tr("justIn")}
+                            </span>
+                          )}
+                        </div>
                       </div>
+                      <div className="text-2xl sm:text-3xl font-extrabold whitespace-nowrap">{bdt(phone.sellingPrice)}</div>
                     </div>
-                    <div className="text-2xl sm:text-3xl font-extrabold whitespace-nowrap">{bdt(phone.sellingPrice)}</div>
-                  </div>
 
-                  {phone.shortDescription && (
-                    <p className="text-sm text-text-secondary leading-relaxed">{phone.shortDescription}</p>
-                  )}
+                    {phone.shortDescription && (
+                      <p className="text-sm text-text-secondary leading-relaxed">{phone.shortDescription}</p>
+                    )}
 
-                  <div>
-                    <h3 className="label-caps mb-2">{tr("fullSpecs")}</h3>
-                    <div className="glass-soft rounded-2xl divide-y divide-black/5">
-                      <SpecRow label={tr("brand")} value={phone.brand} />
-                      <SpecRow label={tr("model")} value={phone.model} />
-                      <SpecRow label={tr("storage")} value={phone.storage || "—"} />
-                      <SpecRow label={tr("ram")} value={phone.ram || "—"} />
-                      <SpecRow label={tr("batteryHealth")} value={`${phone.batteryHealth}%`} />
-                      <SpecRow label={tr("conditionFilter")} value={phone.condition} />
+                    <div>
+                      <h3 className="label-caps mb-2">{tr("fullSpecs")}</h3>
+                      <div className="glass-soft rounded-2xl divide-y divide-black/5">
+                        <SpecRow label={tr("brand")} value={phone.brand} />
+                        <SpecRow label={tr("model")} value={phone.model} />
+                        <SpecRow label={tr("storage")} value={phone.storage || "—"} />
+                        <SpecRow label={tr("ram")} value={phone.ram || "—"} />
+                        <SpecRow label={tr("batteryHealth")} value={`${phone.batteryHealth}%`} />
+                        <SpecRow label={tr("conditionFilter")} value={phone.condition} />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
               </div>
 
               {/* Sticky CTA */}
@@ -246,22 +246,52 @@ function PhotoGallery({
     : (phone.photoUrl ? [phone.photoUrl] : [""]);
   const single = urls.length === 1;
 
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    if (isLeftSwipe) {
+      setActiveImg(activeImg === urls.length - 1 ? 0 : activeImg + 1);
+    }
+    if (isRightSwipe) {
+      setActiveImg(activeImg === 0 ? urls.length - 1 : activeImg - 1);
+    }
+  };
+
   return (
     <div aria-label={label}>
-      <div className="relative aspect-[3/4] bg-white/30 rounded-2xl overflow-hidden group">
+      <div 
+        className="relative aspect-[3/4] bg-white/30 rounded-2xl overflow-hidden group"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <PhotoPlaceholder url={urls[activeImg] || ""} alt={`${phone.brand} ${phone.model}`} />
         {!single && (
           <>
             <button
               onClick={() => setActiveImg(activeImg === 0 ? urls.length - 1 : activeImg - 1)}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-md shadow-sm grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-30 text-text-primary border border-white/40"
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-md shadow-sm grid place-items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity disabled:opacity-30 text-text-primary border border-white/40"
               aria-label="Previous image"
             >
               <ChevronLeft size={18} />
             </button>
             <button
               onClick={() => setActiveImg(activeImg === urls.length - 1 ? 0 : activeImg + 1)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-md shadow-sm grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-30 text-text-primary border border-white/40"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-md shadow-sm grid place-items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity disabled:opacity-30 text-text-primary border border-white/40"
               aria-label="Next image"
             >
               <ChevronRight size={18} />

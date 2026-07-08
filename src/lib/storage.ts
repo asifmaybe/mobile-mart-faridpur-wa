@@ -1,5 +1,25 @@
 import { supabase, supabaseUrl, supabaseAnonKey } from "./supabase";
 
+// ===== In-Memory Cache =====
+interface CacheEntry<T> { data: T; ts: number; }
+const _cache = new Map<string, CacheEntry<any>>();
+const CACHE_TTL = 30_000;          // 30 s for phones/accessories
+const SETTINGS_TTL = 300_000;     // 5 min for settings
+
+function cacheGet<T>(key: string, ttl = CACHE_TTL): T | null {
+  const entry = _cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > ttl) { _cache.delete(key); return null; }
+  return entry.data as T;
+}
+function cacheSet<T>(key: string, data: T) {
+  _cache.set(key, { data, ts: Date.now() });
+}
+export function invalidateCache(...keys: string[]) {
+  if (keys.length === 0) _cache.clear();
+  else keys.forEach((k) => _cache.delete(k));
+}
+
 export interface Settings {
   shopName: string;
   shopNameBn: string;
@@ -137,7 +157,10 @@ export function calculateReceiptTotals(
 }
 
 const isBrowser = () => typeof window !== "undefined";
-const fire = () => window.dispatchEvent(new Event("repairshop:change"));
+const fire = (invalidate?: string[]) => {
+  if (invalidate) invalidateCache(...invalidate);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("repairshop:change"));
+};
 
 // ===== Memos =====
 export interface Memo {
@@ -189,12 +212,16 @@ function toSnakeCaseMemo(m: Memo): any {
 
 export async function getMemos(): Promise<Memo[]> {
   if (!isBrowser()) return [];
+  const cached = cacheGet<Memo[]>('memos');
+  if (cached) return cached;
   const { data, error } = await supabase.from('memos').select('*').order('created_at', { ascending: false });
   if (error) {
     console.error("Error fetching memos:", error);
     return [];
   }
-  return data.map(toCamelCaseMemo);
+  const result = data.map(toCamelCaseMemo);
+  cacheSet('memos', result);
+  return result;
 }
 
 export async function getMemoByToken(token: string): Promise<Memo | undefined> {
@@ -211,17 +238,17 @@ export async function updateMemo(token: string, patch: Partial<Memo>) {
   if (patch.date !== undefined) snakePatch.date = patch.date;
 
   await supabase.from('memos').update(snakePatch).eq('token', token);
-  fire();
+  fire(['memos']);
 }
 
 export async function deleteMemo(token: string) {
   await supabase.from('memos').delete().eq('token', token);
-  fire();
+  fire(['memos']);
 }
 
 export async function addMemo(m: Memo) {
   await supabase.from('memos').insert([toSnakeCaseMemo(normalizeMemo(m))]);
-  fire();
+  fire(['memos']);
 }
 
 export async function generateToken(): Promise<string> {
@@ -267,6 +294,8 @@ function toSnakeCaseSettings(s: Settings): any {
 
 export async function getSettings(): Promise<Settings> {
   if (!isBrowser()) return DEFAULT_SETTINGS;
+  const memCached = cacheGet<Settings>('settings', SETTINGS_TTL);
+  if (memCached) return memCached;
   const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
   if (error || !data) {
     console.error("Error fetching settings:", error);
@@ -276,6 +305,7 @@ export async function getSettings(): Promise<Settings> {
   // Enforce new working hours (overrides any old database values)
   settings.hours = DEFAULT_SETTINGS.hours;
   localStorage.setItem(KEYS.settings, JSON.stringify(settings));
+  cacheSet('settings', settings);
   return settings;
 }
 
@@ -296,7 +326,7 @@ export async function saveSettings(s: Settings) {
   if (!isBrowser()) return;
   await supabase.from('settings').update(toSnakeCaseSettings(s)).eq('id', 1);
   localStorage.setItem(KEYS.settings, JSON.stringify(s));
-  fire();
+  fire(['settings']);
 }
 
 // Ensure settings exist in DB
@@ -355,9 +385,13 @@ function toSnakeCasePart(p: InventoryPart): any {
 
 export async function getInventory(): Promise<InventoryPart[]> {
   if (!isBrowser()) return [];
+  const cached = cacheGet<InventoryPart[]>('inventory');
+  if (cached) return cached;
   const { data, error } = await supabase.from('inventory_parts').select('*');
   if (error) return [];
-  return data.map(toCamelCasePart);
+  const result = data.map(toCamelCasePart);
+  cacheSet('inventory', result);
+  return result;
 }
 
 export async function getPartById(partId: string): Promise<InventoryPart | undefined> {
@@ -375,12 +409,12 @@ export async function generatePartId(): Promise<string> {
 
 export async function upsertPart(part: InventoryPart) {
   await supabase.from('inventory_parts').upsert([toSnakeCasePart(part)], { onConflict: 'part_id' });
-  fire();
+  fire(['inventory']);
 }
 
 export async function deletePart(partId: string) {
   await supabase.from('inventory_parts').delete().eq('part_id', partId);
-  fire();
+  fire(['inventory']);
 }
 
 export async function adjustStock(partId: string, delta: number) {
@@ -492,9 +526,13 @@ function toSnakeCaseReceipt(r: Receipt): any {
 
 export async function getReceipts(): Promise<Receipt[]> {
   if (!isBrowser()) return [];
+  const cached = cacheGet<Receipt[]>('receipts');
+  if (cached) return cached;
   const { data, error } = await supabase.from('receipts').select('*').order('created_at', { ascending: false });
   if (error) return [];
-  return data.map(toCamelCaseReceipt);
+  const result = data.map(toCamelCaseReceipt);
+  cacheSet('receipts', result);
+  return result;
 }
 
 export async function generateReceiptNo(): Promise<string> {
@@ -510,12 +548,12 @@ export async function addReceipt(r: Receipt) {
   for (const it of r.items) {
     if (it.partId) await adjustStock(it.partId, -Math.abs(it.qty));
   }
-  fire();
+  fire(['receipts', 'inventory']);
 }
 
 export async function deleteReceipt(id: string) {
   await supabase.from('receipts').delete().eq('id', id);
-  fire();
+  fire(['receipts']);
 }
 
 
@@ -627,9 +665,13 @@ function toSnakeCasePhone(p: UsedPhone): any {
 
 export async function getPhones(): Promise<UsedPhone[]> {
   if (!isBrowser()) return [];
+  const cached = cacheGet<UsedPhone[]>('phones');
+  if (cached) return cached;
   const { data, error } = await supabase.from('phones').select('*').order('date_added', { ascending: false });
   if (error) return [];
-  return data.map(toCamelCasePhone);
+  const result = data.map(toCamelCasePhone);
+  cacheSet('phones', result);
+  return result;
 }
 
 export async function getPhoneById(id: string): Promise<UsedPhone | undefined> {
@@ -637,9 +679,20 @@ export async function getPhoneById(id: string): Promise<UsedPhone | undefined> {
   return data ? toCamelCasePhone(data) : undefined;
 }
 
+// Optimised: filters at DB level, uses a dedicated cache key
 export async function getAvailablePhones(): Promise<UsedPhone[]> {
-  const phones = await getPhones();
-  return phones.filter((p) => p.status === "Listed");
+  if (!isBrowser()) return [];
+  const cached = cacheGet<UsedPhone[]>('phones_listed');
+  if (cached) return cached;
+  const { data, error } = await supabase
+    .from('phones')
+    .select('*')
+    .eq('status', 'Listed')
+    .order('date_added', { ascending: false });
+  if (error) return [];
+  const result = data.map(toCamelCasePhone);
+  cacheSet('phones_listed', result);
+  return result;
 }
 
 export async function generatePhoneId(): Promise<string> {
@@ -653,12 +706,12 @@ export async function generatePhoneId(): Promise<string> {
 export async function upsertPhone(p: UsedPhone) {
   const { error } = await supabase.from('phones').upsert([toSnakeCasePhone(p)], { onConflict: 'id' });
   if (error) console.error("Error saving phone:", error);
-  fire();
+  fire(['phones', 'phones_listed']);
 }
 
 export async function deletePhone(id: string) {
   await supabase.from('phones').delete().eq('id', id);
-  fire();
+  fire(['phones', 'phones_listed']);
 }
 
 export function filterPhones(
@@ -708,9 +761,13 @@ function toSnakeCaseAccessory(a: Accessory): any {
 
 export async function getAccessories(): Promise<Accessory[]> {
   if (!isBrowser()) return [];
+  const cached = cacheGet<Accessory[]>('accessories');
+  if (cached) return cached;
   const { data, error } = await supabase.from('accessories').select('*').order('date_added', { ascending: false });
   if (error) return [];
-  return data.map(toCamelCaseAccessory).map(recomputeAccessoryStatus);
+  const result = data.map(toCamelCaseAccessory).map(recomputeAccessoryStatus);
+  cacheSet('accessories', result);
+  return result;
 }
 
 export async function getAccessoryById(id: string): Promise<Accessory | undefined> {
@@ -728,12 +785,12 @@ export async function generateAccessoryId(): Promise<string> {
 
 export async function upsertAccessory(a: Accessory) {
   await supabase.from('accessories').upsert([toSnakeCaseAccessory(recomputeAccessoryStatus(a))], { onConflict: 'id' });
-  fire();
+  fire(['accessories']);
 }
 
 export async function deleteAccessory(id: string) {
   await supabase.from('accessories').delete().eq('id', id);
-  fire();
+  fire(['accessories']);
 }
 
 export function filterAccessories(items: Accessory[], f: { category?: string }) {
@@ -749,8 +806,11 @@ export type JustInItem =
   | { type: "accessory"; item: Accessory };
 
 export async function getJustInItems(limit = 6): Promise<JustInItem[]> {
-  const availablePhones = await getAvailablePhones();
-  const accessories = await getAccessories();
+  // Parallel fetch — both requests fire simultaneously
+  const [availablePhones, accessories] = await Promise.all([
+    getAvailablePhones(),
+    getAccessories(),
+  ]);
   const phones: JustInItem[] = availablePhones.map((item) => ({ type: "phone" as const, item }));
   const acc: JustInItem[] = accessories.map((item) => ({ type: "accessory" as const, item }));
   return [...phones, ...acc]

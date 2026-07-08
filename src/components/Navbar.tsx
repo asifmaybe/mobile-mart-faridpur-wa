@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Smartphone, Menu, X } from "lucide-react";
 import { WhatsAppIcon } from "./icons/WhatsAppIcon";
 import { useI18n } from "../lib/i18n";
@@ -11,6 +11,7 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [settings, setSettings] = useState<any>(getCachedSettings);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     const refresh = async () => setSettings(await getSettings());
@@ -19,10 +20,21 @@ export function Navbar() {
     return () => window.removeEventListener("repairshop:change", refresh);
   }, []);
 
+  // rAF-throttled scroll listener — avoids janky layout thrashing on scroll
   useEffect(() => {
-    const h = () => setScrolled(window.scrollY > 20);
-    h(); window.addEventListener("scroll", h);
-    return () => window.removeEventListener("scroll", h);
+    const onScroll = () => {
+      if (rafRef.current !== null) return;
+      rafRef.current = requestAnimationFrame(() => {
+        setScrolled(window.scrollY > 20);
+        rafRef.current = null;
+      });
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -48,6 +60,7 @@ export function Navbar() {
         borderBottom: "1px solid rgba(255,255,255,0.6)",
         boxShadow: scrolled ? "0 4px 24px rgba(30,28,70,0.08)" : "0 4px 24px rgba(30,28,70,0)",
         transition: "background 0.35s ease, box-shadow 0.35s ease, padding 0.35s ease",
+        willChange: "backdrop-filter",
       }}
     >
       <div className="mx-auto max-w-6xl px-4 flex items-center justify-between gap-3">
@@ -75,6 +88,7 @@ export function Navbar() {
             onClick={() => setLang(lang === "en" ? "bn" : "en")}
             className="glass-pill px-3 py-1.5 text-xs font-semibold"
             aria-label="Toggle language"
+            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
           >
             {lang === "en" ? "বাং" : "EN"}
           </button>
@@ -85,7 +99,7 @@ export function Navbar() {
             href={`https://wa.me/${whatsapp}`}
             target="_blank" rel="noreferrer"
             className="w-10 h-10 rounded-full grid place-items-center"
-            style={{ background: "rgba(91,184,144,0.18)", border: "1px solid rgba(91,184,144,0.4)" }}
+            style={{ background: "rgba(91,184,144,0.18)", border: "1px solid rgba(91,184,144,0.4)", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
             aria-label="WhatsApp"
           >
             <WhatsAppIcon size={20} color="#25D366" />
@@ -94,24 +108,37 @@ export function Navbar() {
             className="lg:hidden w-10 h-10 rounded-full grid place-items-center glass-pill"
             onClick={() => setOpen((o) => !o)}
             aria-label="Menu"
+            aria-expanded={open}
+            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
           >
             {open ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
       </div>
 
-      {open && (
-        <div className="lg:hidden mx-4 mt-2 glass p-2 fade-up">
-          {links.map((l) => (
-            <Link key={l.to} to={l.to} className="block px-4 py-3 text-sm font-medium rounded-xl hover:bg-white/5">
-              {tr(l.key)}
-            </Link>
-          ))}
-          <Link to="/admin" className="block px-4 py-3 text-sm font-medium rounded-xl hover:bg-white/5">
-            {tr("adminLogin")}
+      {/* Mobile menu — CSS transform instead of mount/unmount to avoid layout thrash */}
+      <div
+        className="lg:hidden mx-4 mt-2 glass p-2 overflow-hidden"
+        style={{
+          maxHeight: open ? "320px" : "0px",
+          opacity: open ? 1 : 0,
+          paddingTop: open ? undefined : 0,
+          paddingBottom: open ? undefined : 0,
+          transition: "max-height 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.25s ease",
+          willChange: "max-height, opacity",
+          pointerEvents: open ? "auto" : "none",
+        }}
+        aria-hidden={!open}
+      >
+        {links.map((l) => (
+          <Link key={l.to} to={l.to} className="block px-4 py-3 text-sm font-medium rounded-xl hover:bg-white/5">
+            {tr(l.key)}
           </Link>
-        </div>
-      )}
+        ))}
+        <Link to="/admin" className="block px-4 py-3 text-sm font-medium rounded-xl hover:bg-white/5">
+          {tr("adminLogin")}
+        </Link>
+      </div>
     </header>
   );
 }

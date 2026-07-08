@@ -29,17 +29,29 @@ export const Route = createFileRoute("/accessories")({
 function AccessoriesPage() {
   const { tr, lang } = useI18n();
   const [all, setAll] = useState<Accessory[]>([]);
+  const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<any>(getCachedSettings);
 
   useEffect(() => {
+    let cancelled = false;
     const h = async () => {
-      const accs = await getAccessories();
-      setAll(accs.filter((a) => a.status !== "Discontinued"));
-      setSettings(await getSettings());
+      // Parallel fetch — accessories and settings load simultaneously
+      const [accs, cfg] = await Promise.all([
+        getAccessories(),
+        getSettings(),
+      ]);
+      if (!cancelled) {
+        setAll(accs.filter((a) => a.status !== "Discontinued"));
+        setSettings(cfg);
+        setLoading(false);
+      }
     };
     h();
     window.addEventListener("repairshop:change", h);
-    return () => window.removeEventListener("repairshop:change", h);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("repairshop:change", h);
+    };
   }, []);
 
   const [category, setCategory] = useState("");
@@ -82,7 +94,21 @@ function AccessoriesPage() {
 
         <section className="px-4">
           <div className="mx-auto max-w-6xl">
-            {filtered.length === 0 ? (
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="glass overflow-hidden flex flex-col" style={{ borderRadius: 22 }}>
+                    <div className="skeleton aspect-[4/3]" style={{ borderRadius: 0 }} />
+                    <div className="p-4 flex flex-col gap-3">
+                      <div className="skeleton h-5 w-3/4" />
+                      <div className="skeleton h-4 w-1/2" />
+                      <div className="skeleton h-7 w-1/3" />
+                      <div className="skeleton h-11 w-full" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
               <EmptyState
                 icon={activeCount > 0 ? Headphones : PackageX}
                 message={tr("noAccessoriesMatch")}
@@ -92,7 +118,8 @@ function AccessoriesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filtered.map((a) => (
                   <AccessoryCard key={a.id} acc={a} tr={tr} settings={settings} />
-                ))}</div>
+                ))}
+              </div>
             )}
           </div>
         </section>
