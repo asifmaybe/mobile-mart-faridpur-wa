@@ -16,7 +16,7 @@ export const Route = createFileRoute("/compare")({
   },
   head: () => ({
     meta: [
-      { title: "Compare Phones — Faridpur Mobile Mart" },
+      { title: "Compare Phones | Faridpur Mobile Mart" },
       { name: "description", content: "Side-by-side comparison of available used phones." },
     ],
   }),

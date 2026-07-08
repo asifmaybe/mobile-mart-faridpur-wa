@@ -21,7 +21,7 @@ import { PhoneDetailModal } from "../components/PhoneDetailModal";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Faridpur Mobile Mart — Authentic Used Phone Shop, Faridpur" },
+      { title: "Faridpur Mobile Mart | Authentic Used Phone Shop, Faridpur" },
       { name: "description", content: "Trusted mobile phone shop in Faridpur: Where You Get Quality Used Mobile Phone." },
     ],
   }),

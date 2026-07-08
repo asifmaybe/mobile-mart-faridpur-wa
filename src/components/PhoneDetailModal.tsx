@@ -9,6 +9,23 @@ import { bdt, shopWhatsAppLink } from "../lib/wa";
 import { PhotoPlaceholder } from "./PhotoPlaceholder";
 import { WhatsAppIcon } from "./icons/WhatsAppIcon";
 
+// ─── COMPACT REDESIGN ────────────────────────────────────────────────────────
+// Always side-by-side (image left 42% | specs right 58%)
+// Header: name + badges + price + close in one compact row
+// Image fills available height — no fixed aspect-ratio that forces scrolling
+// Everything fits in viewport without user needing to scroll
+// ─────────────────────────────────────────────────────────────────────────────
+
+function timeAgo(dateString: string): string {
+  const diff = Date.now() - new Date(dateString).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 60) return `${Math.max(1, minutes)}min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}hour${hours > 1 ? 's' : ''} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}day${days > 1 ? 's' : ''} ago`;
+}
+
 interface Props {
   phone: UsedPhone | null;
   open: boolean;
@@ -114,14 +131,13 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
               role="dialog"
               aria-modal="true"
               aria-labelledby={`phone-detail-title-${phone.id}`}
-              className="pointer-events-auto w-full sm:max-w-[680px] max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col rounded-[26px]"
+              className="pointer-events-auto w-full max-w-[820px] max-h-[85vh] overflow-hidden rounded-[22px] flex flex-col"
               style={{
-                background: "rgba(255,255,255,0.72)",
+                background: "rgba(255,255,255,0.76)",
                 backdropFilter: "blur(40px) saturate(200%)",
                 WebkitBackdropFilter: "blur(40px) saturate(200%)",
-                border: "1px solid rgba(255,255,255,0.88)",
-                borderTop: "1px solid rgba(255,255,255,0.98)",
-                boxShadow: "0 32px 80px rgba(30,20,80,0.22), 0 8px 24px rgba(30,20,80,0.10), inset 0 1px 0 rgba(255,255,255,0.95)",
+                border: "1px solid rgba(255,255,255,0.90)",
+                boxShadow: "0 28px 70px rgba(30,20,80,0.24), 0 6px 20px rgba(30,20,80,0.10), inset 0 1px 0 rgba(255,255,255,0.95)",
                 willChange: "transform, opacity",
               }}
               variants={panelVariants}
@@ -130,95 +146,133 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
               exit="exit"
               transition={panelSpring}
             >
-              {/* Drag handle (mobile) */}
-              <div className="sm:hidden pt-3 pb-1 grid place-items-center shrink-0">
-                <div className="w-10 h-1 rounded-full bg-text-muted/35" />
-              </div>
-
-              {/* Close button */}
-              <button
-                ref={closeBtnRef}
-                onClick={onClose}
-                aria-label={tr("closeDetails")}
-                className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full grid place-items-center"
-                style={{
-                  background: "rgba(255,255,255,0.75)",
-                  backdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255,255,255,0.85)",
-                  boxShadow: "0 2px 8px rgba(80,70,160,0.10)",
-                }}
+              {/* Header bar */}
+              <div
+                className="flex items-center justify-between px-4 py-3 shrink-0"
+                style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}
               >
-                <X size={16} />
-              </button>
-
-              {/* Scrollable content wrapper with static top padding so it clips before the top edge */}
-              <div className="flex-1 overflow-hidden flex flex-col pt-0 sm:pt-3 px-3">
-                <div className="flex-1 overflow-y-auto overscroll-contain no-scrollbar rounded-t-2xl">
-                  <PhotoGallery phone={phone} activeImg={activeImg} setActiveImg={setActiveImg} label={tr("photoGalleryLabel")} />
-
-                  <div className="px-2 pt-4 pb-5 space-y-4">
-                    <div className="flex items-start justify-between gap-3 pr-12">
-                      <div>
-                        <h2 id={`phone-detail-title-${phone.id}`} className="text-xl sm:text-2xl font-extrabold leading-tight">
-                          {phone.brand} {phone.model}
-                        </h2>
-                        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-white/70 text-text-secondary border-white/80">
-                            {phone.condition}
-                          </span>
-                          {isJustIn(phone.dateAdded) && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border bg-accent-orange/25 text-accent-orange border-accent-orange/50">
-                              <Flame size={11} strokeWidth={1.75} /> {tr("justIn")}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-2xl sm:text-3xl font-extrabold whitespace-nowrap">{bdt(phone.sellingPrice)}</div>
-                    </div>
-
-                    {phone.shortDescription && (
-                      <p className="text-sm text-text-secondary leading-relaxed">{phone.shortDescription}</p>
-                    )}
-
-                    <div>
-                      <h3 className="label-caps mb-2">{tr("fullSpecs")}</h3>
-                      <div className="glass-soft rounded-2xl divide-y divide-black/5">
-                        <SpecRow label={tr("brand")} value={phone.brand} />
-                        <SpecRow label={tr("model")} value={phone.model} />
-                        <SpecRow label={tr("storage")} value={phone.storage || "—"} />
-                        <SpecRow label={tr("ram")} value={phone.ram || "—"} />
-                        <SpecRow label={tr("batteryHealth")} value={`${phone.batteryHealth}%`} />
-                        <SpecRow label={tr("conditionFilter")} value={phone.condition} />
-                      </div>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <h2
+                    id={`phone-detail-title-${phone.id}`}
+                    className="font-bold text-base sm:text-lg leading-tight truncate"
+                  >
+                    {phone.brand} {phone.model}
+                  </h2>
+                  {isJustIn(phone.dateAdded) && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-accent-orange/20 text-accent-orange border-accent-orange/40 shrink-0">
+                      <Flame size={10} strokeWidth={1.75} /> {tr("justIn")}
+                    </span>
+                  )}
+                  {isJustIn(phone.dateAdded) && (
+                    <span className="hidden sm:inline px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-white/70 text-text-secondary border-white/80 shrink-0">
+                      {timeAgo(phone.dateAdded)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-lg sm:text-xl font-extrabold">{bdt(phone.sellingPrice)}</span>
+                  <button
+                    ref={closeBtnRef}
+                    onClick={onClose}
+                    aria-label={tr("closeDetails")}
+                    className="w-8 h-8 rounded-full grid place-items-center shrink-0"
+                    style={{
+                      background: "rgba(0,0,0,0.06)",
+                      border: "1px solid rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    <X size={15} />
+                  </button>
                 </div>
               </div>
 
-              {/* Sticky CTA */}
-              <div className="shrink-0 p-4 flex gap-3"
-                style={{
-                  background: "rgba(255,255,255,0.50)",
-                  backdropFilter: "blur(20px)",
-                  borderTop: "1px solid rgba(255,255,255,0.60)",
-                }}
-              >
-                <Link
-                  to="/compare"
-                  search={{ id1: phone.id }}
-                  className="btn-glass flex-1 !min-h-[48px] justify-center text-sm sm:text-base px-2"
+              {/* Body: image left, specs right */}
+              <div className="flex flex-col sm:flex-row gap-0 flex-1 min-h-0 overflow-hidden">
+                {/* Image panel */}
+                <div
+                  className="w-full sm:w-[42%] shrink-0 p-3 h-[250px] sm:h-auto"
+                  style={{ borderRight: "1px solid rgba(0,0,0,0.06)" }}
                 >
-                  <GitCompareArrows size={18} /> <span className="ml-1">{lang === "bn" ? "তুলনা" : "Compare"}</span>
-                </Link>
-                <a
-                  href={shopWhatsAppLink(
-                    `Hi! I'm interested in the ${phone.brand} ${phone.model} (${phone.storage}/${phone.ram}) listed for ${bdt(phone.sellingPrice)}. Is it still available?`
-                  )}
-                  target="_blank" rel="noreferrer"
-                  className="btn-primary flex-[2] !min-h-[48px] justify-center text-sm sm:text-base"
-                >
-                  <WhatsAppIcon size={18} color="#FFFFFF" /> {tr("whatsappToBuy")}
-                </a>
+                  <PhotoGallery
+                    phone={phone}
+                    activeImg={activeImg}
+                    setActiveImg={setActiveImg}
+                    label={tr("photoGalleryLabel")}
+                  />
+                </div>
+
+                {/* Specs panel */}
+                <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+                  <div className="flex-1 overflow-y-auto overscroll-contain no-scrollbar p-3 space-y-3">
+                    {/* Tags row */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {phone.color && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-white/70 text-text-secondary border-white/80">
+                          {phone.color}
+                        </span>
+                      )}
+                      {phone.variant && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-white/70 text-text-secondary border-white/80">
+                          {phone.variant}
+                        </span>
+                      )}
+                    </div>
+
+                    {phone.shortDescription && (
+                      <p className="text-xs text-text-secondary leading-relaxed">
+                        {phone.shortDescription}
+                      </p>
+                    )}
+
+                    {/* Specs table */}
+                    <div>
+                      <h3 className="label-caps mb-1.5 text-[10px]">{tr("fullSpecs")}</h3>
+                      <div className="glass-soft rounded-xl divide-y divide-black/5">
+                        <SpecRow label={tr("brand")} value={phone.brand} />
+                        <SpecRow label={tr("model")} value={phone.model} />
+                        {phone.variant && <SpecRow label="Variant" value={phone.variant} />}
+                        {phone.storage && <SpecRow label={tr("storage")} value={phone.storage} />}
+                        {phone.ram && <SpecRow label={tr("ram")} value={phone.ram} />}
+                        {phone.batteryHealth > 0 && (
+                          <SpecRow label={tr("batteryHealth")} value={`${phone.batteryHealth}%`} />
+                        )}
+                        <SpecRow label={tr("conditionFilter")} value={phone.condition} />
+                        {phone.waterproof === true && <SpecRow label="Waterproof" value="Yes" />}
+                        {phone.waterproof === false && <SpecRow label="Waterproof" value="No" />}
+                        {phone.warrantyTerms && <SpecRow label="Warranty" value={phone.warrantyTerms} />}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CTA */}
+                  <div
+                    className="shrink-0 p-3 flex gap-2"
+                    style={{
+                      background: "rgba(255,255,255,0.45)",
+                      backdropFilter: "blur(16px)",
+                      borderTop: "1px solid rgba(255,255,255,0.60)",
+                    }}
+                  >
+                    <Link
+                      to="/compare"
+                      search={{ id1: phone.id }}
+                      className="btn-glass flex-1 !min-h-[42px] justify-center text-sm px-2"
+                    >
+                      <GitCompareArrows size={16} />
+                      <span className="ml-1 hidden xs:inline">{lang === "bn" ? "তুলনা" : "Compare"}</span>
+                    </Link>
+                    <a
+                      href={shopWhatsAppLink(
+                        `Hi! I'm interested in the ${phone.brand} ${phone.model} (${phone.storage}/${phone.ram}) listed for ${bdt(phone.sellingPrice)}. Is it still available?`
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn-primary flex-[2] !min-h-[42px] justify-center text-sm"
+                    >
+                      <WhatsAppIcon size={16} color="#FFFFFF" /> {tr("whatsappToBuy")}
+                    </a>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -231,7 +285,7 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
 
 function SpecRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 text-sm">
+    <div className="flex items-center justify-between px-3 py-2 text-xs">
       <span className="text-text-muted">{label}</span>
       <span className="font-semibold text-text-primary">{value}</span>
     </div>
@@ -272,9 +326,10 @@ function PhotoGallery({
   };
 
   return (
-    <div aria-label={label}>
+    <div aria-label={label} className="h-full flex flex-col">
       <div 
-        className="relative aspect-[3/4] bg-white/30 rounded-2xl overflow-hidden group"
+        className="relative flex-1 bg-white/30 rounded-xl overflow-hidden group"
+        style={{ minHeight: 0 }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -284,29 +339,29 @@ function PhotoGallery({
           <>
             <button
               onClick={() => setActiveImg(activeImg === 0 ? urls.length - 1 : activeImg - 1)}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-md shadow-sm grid place-items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity disabled:opacity-30 text-text-primary border border-white/40"
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/70 backdrop-blur-md shadow-sm grid place-items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity disabled:opacity-30 text-text-primary border border-white/40"
               aria-label="Previous image"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
             <button
               onClick={() => setActiveImg(activeImg === urls.length - 1 ? 0 : activeImg + 1)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/70 backdrop-blur-md shadow-sm grid place-items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity disabled:opacity-30 text-text-primary border border-white/40"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/70 backdrop-blur-md shadow-sm grid place-items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity disabled:opacity-30 text-text-primary border border-white/40"
               aria-label="Next image"
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} />
             </button>
           </>
         )}
       </div>
       {!single && (
-        <div className="mt-3 flex items-center justify-center gap-1.5">
+        <div className="mt-2 flex items-center justify-center gap-1.5 shrink-0">
           {urls.map((_, i) => (
             <button
               key={i}
               onClick={() => setActiveImg(i)}
               aria-label={`Image ${i + 1}`}
-              className={`h-1.5 rounded-full transition-all ${i === activeImg ? "w-5 bg-text-primary/70" : "w-1.5 bg-text-muted/40"}`}
+              className={`h-1 rounded-full transition-all ${i === activeImg ? "w-4 bg-text-primary/70" : "w-1.5 bg-text-muted/40"}`}
             />
           ))}
         </div>

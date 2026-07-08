@@ -200,7 +200,7 @@ export const t: Dict = {
   priceRange: { en: "Price Range", bn: "দামের পরিসর" },
   minPrice: { en: "Min", bn: "সর্বনিম্ন" },
   maxPrice: { en: "Max", bn: "সর্বোচ্চ" },
-  justIn: { en: "Just In", bn: "নতুন আসা" },
+  justIn: { en: "Just Arrived", bn: "নতুন আসা" },
   justInSubtitle: { en: "Latest phones & accessories", bn: "নতুন আসা ফোন ও অ্যাকসেসরিজ" },
   viewAll: { en: "View All", bn: "সব দেখুন" },
   inStock: { en: "In Stock", bn: "স্টকে আছে" },

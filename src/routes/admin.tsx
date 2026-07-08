@@ -19,7 +19,7 @@ import { emptyItem, openReceiptPrint, buildWhatsAppText, ReceiptItemsList, Recei
 import { BuySellView } from "../components/admin/BuySellView";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Admin — Faridpur Mobile Mart" }] }),
+  head: () => ({ meta: [{ title: "Admin | Faridpur Mobile Mart" }] }),
   component: AdminPage,
 });
 

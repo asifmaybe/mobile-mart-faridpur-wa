@@ -19,9 +19,9 @@ import { Modal } from "../lib/ui";
 export const Route = createFileRoute("/phones")({
   head: () => ({
     meta: [
-      { title: "Used Phones — Faridpur Mobile Mart" },
+      { title: "Used Phones | Faridpur Mobile Mart" },
       { name: "description", content: "Quality-checked used phones in Faridpur — Samsung, Apple, Xiaomi and more." },
-      { property: "og:title", content: "Used Phones — Faridpur Mobile Mart" },
+      { property: "og:title", content: "Used Phones | Faridpur Mobile Mart" },
       { property: "og:description", content: "Quality-checked used phones, ready to use." },
     ],
   }),
@@ -224,14 +224,18 @@ export function PhoneCard({
       </div>
       <div className="p-4 pt-2 flex flex-col gap-2 flex-1">
         <h3 className="font-bold text-base leading-tight">{phone.brand} {phone.model}</h3>
-        <div className="text-xs text-text-muted flex items-center gap-1.5 flex-wrap">
-          <span>{phone.storage}</span>
-          <span className="text-text-muted/50">·</span>
-          <span>{phone.ram} RAM</span>
-          <span className="text-text-muted/50">·</span>
-          <span>{phone.batteryHealth}% {tr("batteryHealth")}</span>
-          <span className="text-text-muted/50">·</span>
-          <span>{phone.condition}</span>
+        <div className="text-xs text-text-muted flex items-center flex-wrap gap-x-1.5 gap-y-1">
+          {[
+            phone.storage,
+            phone.ram ? `${phone.ram} RAM` : null,
+            phone.batteryHealth > 0 ? `${phone.batteryHealth}% ${tr("batteryHealth")}` : null,
+            phone.condition,
+          ].filter(Boolean).map((t, i, arr) => (
+            <span key={i} className="flex items-center gap-1.5">
+              <span>{t}</span>
+              {i < arr.length - 1 && <span className="text-text-muted/50">·</span>}
+            </span>
+          ))}
         </div>
         <div className="text-2xl font-extrabold mt-1">{bdt(phone.sellingPrice)}</div>
         <div className="mt-2 flex gap-2">

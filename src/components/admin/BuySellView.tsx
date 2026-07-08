@@ -247,10 +247,11 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
   onClose: () => void; onSave: (p: UsedPhone) => void;
 }) {
   const [p, setP] = useState<UsedPhone>(initial ?? {
-    id: "", brand: "Samsung", model: "", storage: "", ram: "",
-    batteryHealth: 100, condition: "Good", purchasePrice: 0, sellingPrice: 0,
+    id: "", brand: "Apple", model: "", storage: "", ram: "",
+    batteryHealth: "" as any, condition: "Good", purchasePrice: "" as any, sellingPrice: "" as any,
     status: "Draft", photoUrl: "", notes: "", dateAdded: todayISO(),
-    galleryUrls: [], shortDescription: "", imei: "", soldDate: "", warrantyTerms: "",
+    galleryUrls: [], shortDescription: "", soldDate: "", warrantyTerms: "",
+    color: "", variant: "", waterproof: undefined,
   });
   useEffect(() => {
     if (!initial) generatePhoneId().then((id) => setP((s) => ({ ...s, id })));
@@ -265,10 +266,17 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!p.brand.trim() || !p.model.trim()) { showToast(tr("requiredFields") || "Please fill required fields"); return; }
-    if (p.purchasePrice < 0 || p.sellingPrice < 0 || p.batteryHealth < 0 || p.batteryHealth > 100) {
+    if (Number(p.purchasePrice) < 0 || Number(p.sellingPrice) < 0 || Number(p.batteryHealth) < 0 || Number(p.batteryHealth) > 100) {
       showToast(tr("invalidValues") || "Invalid values"); return;
     }
-    onSave({ ...p, dateAdded: p.dateAdded || todayISO(), photoUrl: p.galleryUrls?.[0] || "" });
+    onSave({ 
+      ...p, 
+      batteryHealth: Number(p.batteryHealth) || 0,
+      purchasePrice: Number(p.purchasePrice) || 0,
+      sellingPrice: Number(p.sellingPrice) || 0,
+      dateAdded: p.dateAdded || todayISO(), 
+      photoUrl: p.galleryUrls?.[0] || "" 
+    });
   };
 
   const lossWarning = p.sellingPrice > 0 && p.purchasePrice > 0 && p.sellingPrice < p.purchasePrice;
@@ -289,13 +297,19 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
             <input value={p.model} onChange={(e) => set("model", e.target.value)} className="glass-input" required />
           </Field>
           <Field label={tr("storage")}>
-            <input value={p.storage} onChange={(e) => set("storage", e.target.value)} placeholder="128GB" className="glass-input" />
+            <select value={p.storage} onChange={(e) => set("storage", e.target.value)} className="glass-input">
+              <option value="">Select Storage</option>
+              {["64GB", "128GB", "256GB", "512GB", "1TB"].map(opt => <option key={opt}>{opt}</option>)}
+            </select>
           </Field>
           <Field label={tr("ram")}>
-            <input value={p.ram} onChange={(e) => set("ram", e.target.value)} placeholder="8GB" className="glass-input" />
+            <select value={p.ram} onChange={(e) => set("ram", e.target.value)} className="glass-input">
+              <option value="">Select RAM</option>
+              {["2GB", "3GB", "4GB", "6GB", "8GB", "12GB", "16GB"].map(opt => <option key={opt}>{opt}</option>)}
+            </select>
           </Field>
           <Field label={tr("batteryHealthPct")}>
-            <input type="number" min={0} max={100} value={p.batteryHealth} onChange={(e) => set("batteryHealth", Number(e.target.value))} className="glass-input" />
+            <input type="number" min={0} max={100} value={p.batteryHealth === 0 ? '' : p.batteryHealth} onChange={(e) => set("batteryHealth", e.target.value === '' ? ('' as any) : Number(e.target.value))} className="glass-input" />
           </Field>
           <Field label={tr("conditionFilter")}>
             <select value={p.condition} onChange={(e) => set("condition", e.target.value as PhoneCondition)} className="glass-input">
@@ -303,10 +317,10 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
             </select>
           </Field>
           <Field label={tr("purchasePrice") + " ৳"}>
-            <input type="number" min={0} value={p.purchasePrice} onChange={(e) => set("purchasePrice", Number(e.target.value))} className="glass-input" />
+            <input type="number" min={0} value={p.purchasePrice === 0 ? '' : p.purchasePrice} onChange={(e) => set("purchasePrice", e.target.value === '' ? ('' as any) : Number(e.target.value))} className="glass-input" />
           </Field>
           <Field label={tr("sellingPrice") + " ৳"}>
-            <input type="number" min={0} value={p.sellingPrice} onChange={(e) => set("sellingPrice", Number(e.target.value))} className="glass-input" />
+            <input type="number" min={0} value={p.sellingPrice === 0 ? '' : p.sellingPrice} onChange={(e) => set("sellingPrice", e.target.value === '' ? ('' as any) : Number(e.target.value))} className="glass-input" />
           </Field>
           <Field label={tr("statusLabel") || "Status"}>
             <select value={p.status} onChange={(e) => set("status", e.target.value as PhoneStatus)} className="glass-input font-semibold">
@@ -316,8 +330,18 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
           <Field label={tr("dateAdded") || "Date Added"}>
             <input type="date" value={p.dateAdded.slice(0, 10)} onChange={(e) => set("dateAdded", new Date(e.target.value).toISOString())} className="glass-input" />
           </Field>
-          <Field label="IMEI">
-            <input value={p.imei || ""} onChange={(e) => set("imei", e.target.value)} placeholder="15-digit IMEI" className="glass-input" />
+          <Field label="Phone Color">
+            <input value={p.color || ""} onChange={(e) => set("color", e.target.value)} placeholder="e.g. Midnight Black" className="glass-input" />
+          </Field>
+          <Field label="Variant">
+            <input value={p.variant || ""} onChange={(e) => set("variant", e.target.value)} placeholder="e.g. USA Variant" className="glass-input" />
+          </Field>
+          <Field label="Waterproof">
+            <select value={p.waterproof === true ? "Yes" : p.waterproof === false ? "No" : ""} onChange={(e) => set("waterproof", e.target.value === "" ? undefined : e.target.value === "Yes")} className="glass-input">
+              <option value="">Select</option>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
           </Field>
           <Field label="Warranty Terms">
             <input value={p.warrantyTerms || ""} onChange={(e) => set("warrantyTerms", e.target.value)} placeholder="e.g. 7 Days Replacement" className="glass-input" />

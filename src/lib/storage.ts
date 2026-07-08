@@ -578,9 +578,11 @@ export interface UsedPhone {
   dateAdded: string;
   galleryUrls?: string[];
   shortDescription?: string;
-  imei?: string;
   soldDate?: string;
   warrantyTerms?: string;
+  color?: string;
+  variant?: string;
+  waterproof?: boolean;
 }
 
 export type AccessoryCategory =
@@ -618,6 +620,13 @@ export function recomputeAccessoryStatus(a: Accessory): Accessory {
 
 // ---- Phones ----
 function toCamelCasePhone(dbPhone: any): UsedPhone {
+  let extra: any = {};
+  try {
+    if (typeof dbPhone.imei === 'string' && dbPhone.imei.startsWith('{')) {
+      extra = JSON.parse(dbPhone.imei);
+    }
+  } catch (e) {}
+
   return {
     id: dbPhone.id,
     brand: dbPhone.brand,
@@ -634,9 +643,11 @@ function toCamelCasePhone(dbPhone: any): UsedPhone {
     dateAdded: dbPhone.date_added,
     galleryUrls: dbPhone.gallery_urls,
     shortDescription: dbPhone.short_description,
-    imei: dbPhone.imei,
     soldDate: dbPhone.sold_date,
     warrantyTerms: dbPhone.warranty_terms,
+    color: extra.color || '',
+    variant: extra.variant || '',
+    waterproof: extra.waterproof,
   };
 }
 
@@ -657,9 +668,9 @@ function toSnakeCasePhone(p: UsedPhone): any {
     date_added: p.dateAdded,
     gallery_urls: p.galleryUrls || [],
     short_description: p.shortDescription || '',
-    imei: p.imei || '',
     sold_date: p.soldDate || null,
     warranty_terms: p.warrantyTerms || '',
+    imei: JSON.stringify({ color: p.color || '', variant: p.variant || '', waterproof: p.waterproof }),
   };
 }
 

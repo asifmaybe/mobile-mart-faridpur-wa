@@ -18,9 +18,9 @@ import { EmptyState } from "./phones";
 export const Route = createFileRoute("/accessories")({
   head: () => ({
     meta: [
-      { title: "Accessories — Faridpur Mobile Mart" },
+      { title: "Accessories | Faridpur Mobile Mart" },
       { name: "description", content: "Power banks, chargers, headphones, cases and cables in Faridpur." },
-      { property: "og:title", content: "Accessories — Faridpur Mobile Mart" },
+      { property: "og:title", content: "Accessories | Faridpur Mobile Mart" },
       { property: "og:description", content: "Quality phone accessories at fair prices." },
     ],
   }),
