@@ -24,9 +24,12 @@ export function Footer() {
         <div className="grid gap-8 md:grid-cols-3">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-9 h-9 rounded-xl grid place-items-center" style={{ background: "linear-gradient(135deg,#7C6FE8,#5847C7)" }}>
-                <Smartphone size={18} color="#FFFFFF" strokeWidth={2.2} />
-              </div>
+              <img
+                src="/logo.png"
+                alt="Shop Logo"
+                className="w-9 h-9 object-contain rounded-xl"
+              />
+
               <div className="font-bold">{name}</div>
             </div>
             <p className="text-sm text-text-secondary">

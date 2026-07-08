@@ -327,7 +327,7 @@ function PhotoGallery({
 
   return (
     <div aria-label={label} className="h-full flex flex-col">
-      <div 
+      <div
         className="relative flex-1 bg-white/30 rounded-xl overflow-hidden group"
         style={{ minHeight: 0 }}
         onTouchStart={onTouchStart}

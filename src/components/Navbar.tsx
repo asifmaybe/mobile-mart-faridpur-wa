@@ -65,9 +65,12 @@ export function Navbar() {
     >
       <div className="mx-auto max-w-6xl px-4 flex items-center justify-between gap-3">
         <Link to="/" className="flex items-center gap-2 min-w-0 shrink-0">
-          <div className="w-9 h-9 rounded-xl grid place-items-center" style={{ background: "linear-gradient(135deg,#7C6FE8,#5847C7)", boxShadow: "0 4px 16px rgba(88,71,199,0.35)" }}>
-            <Smartphone size={18} color="#FFFFFF" strokeWidth={2.2} />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Shop Logo"
+            className="w-9 h-9 object-contain rounded-xl"
+          />
+
 
           <div className="leading-tight min-w-0">
             <div className="font-bold text-sm truncate">{shopName}</div>
