@@ -146,12 +146,25 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
               exit="exit"
               transition={panelSpring}
             >
-              {/* Header bar */}
-              <div
-                className="flex items-center justify-between px-4 py-3 shrink-0"
-                style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}
+              {/* Mobile Close Button (Absolute) */}
+              <button
+                onClick={onClose}
+                aria-label={tr("closeDetails")}
+                className="sm:hidden absolute top-[12px] right-[12px] z-[60] w-8 h-8 rounded-full grid place-items-center"
+                style={{
+                  background: "rgba(0,0,0,0.06)",
+                  border: "1px solid rgba(0,0,0,0.08)",
+                }}
               >
-                <div className="flex items-center gap-2 min-w-0">
+                <X size={15} />
+              </button>
+
+              {/* Header bar (Desktop only) */}
+              <div
+                className="hidden sm:flex items-center justify-between px-4 py-3 shrink-0"
+                style={{ borderBottom: "none" }}
+              >
+                <div className="hidden sm:flex items-center gap-2 min-w-0">
                   <h2
                     id={`phone-detail-title-${phone.id}`}
                     className="font-bold text-base sm:text-lg leading-tight truncate"
@@ -169,8 +182,8 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-lg sm:text-xl font-extrabold">{bdt(phone.sellingPrice)}</span>
+                <div className="flex items-center gap-3 shrink-0 ml-auto">
+                  <span className="hidden sm:inline text-lg sm:text-xl font-extrabold">{bdt(phone.sellingPrice)}</span>
                   <button
                     ref={closeBtnRef}
                     onClick={onClose}
@@ -186,13 +199,20 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
                 </div>
               </div>
 
-              {/* Body: image left, specs right */}
-              <div className="flex flex-col sm:flex-row gap-0 flex-1 min-h-0 overflow-hidden">
+              {/* Body: image left, specs right on desktop; stacked on mobile */}
+              <div className="flex flex-col sm:flex-row gap-0 flex-1 min-h-0 overflow-y-auto sm:overflow-hidden no-scrollbar">
                 {/* Image panel */}
                 <div
-                  className="w-full sm:w-[42%] shrink-0 p-3 h-[250px] sm:h-auto"
-                  style={{ borderRight: "1px solid rgba(0,0,0,0.06)" }}
+                  className="relative w-full sm:w-[42%] shrink-0 p-3 sm:h-auto sm:border-r border-black/5"
                 >
+                  {isJustIn(phone.dateAdded) && (
+                    <span
+                      className="sm:hidden absolute top-5 left-5 z-10 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-accent-orange text-white shrink-0"
+                      style={{ boxShadow: "0 4px 14px rgba(249, 115, 22, 0.45)" }}
+                    >
+                      <Flame size={12} strokeWidth={2} /> {tr("justIn")}
+                    </span>
+                  )}
                   <PhotoGallery
                     phone={phone}
                     activeImg={activeImg}
@@ -202,8 +222,20 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
                 </div>
 
                 {/* Specs panel */}
-                <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-                  <div className="flex-1 overflow-y-auto overscroll-contain no-scrollbar p-3 space-y-3">
+                <div className="flex-1 min-w-0 flex flex-col sm:overflow-hidden">
+                  <div className="flex-1 sm:overflow-y-auto overscroll-contain no-scrollbar p-3 space-y-3">
+
+                    {/* Mobile Title & Price */}
+                    <div className="sm:hidden mb-2 flex items-start justify-between gap-3">
+                      <h2
+                        id={`phone-detail-title-mobile-${phone.id}`}
+                        className="font-bold text-xl leading-tight"
+                      >
+                        {phone.brand} {phone.model}
+                      </h2>
+                      <span className="text-xl font-extrabold shrink-0 text-text-primary mt-0.5">{bdt(phone.sellingPrice)}</span>
+                    </div>
+
                     {/* Tags row */}
                     <div className="flex flex-wrap items-center gap-1.5">
                       {phone.color && (
@@ -214,6 +246,11 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
                       {phone.variant && (
                         <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-white/70 text-text-secondary border-white/80">
                           {phone.variant}
+                        </span>
+                      )}
+                      {isJustIn(phone.dateAdded) && (
+                        <span className="sm:hidden inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-white/70 text-text-secondary border-white/80 shrink-0">
+                          {timeAgo(phone.dateAdded)}
                         </span>
                       )}
                     </div>
@@ -244,9 +281,9 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
                     </div>
                   </div>
 
-                  {/* CTA */}
+                  {/* CTA (Sticky inside modal on desktop, at bottom of list on mobile) */}
                   <div
-                    className="shrink-0 p-3 flex gap-2"
+                    className="shrink-0 p-3 flex gap-2 sm:sticky sm:bottom-0"
                     style={{
                       background: "rgba(255,255,255,0.45)",
                       backdropFilter: "blur(16px)",
@@ -326,9 +363,9 @@ function PhotoGallery({
   };
 
   return (
-    <div aria-label={label} className="h-full flex flex-col">
+    <div aria-label={label} className="sm:h-full flex flex-col">
       <div
-        className="relative flex-1 bg-white/30 rounded-xl overflow-hidden group"
+        className="relative sm:flex-1 bg-white/30 rounded-xl overflow-hidden group aspect-[3/4] sm:aspect-auto"
         style={{ minHeight: 0 }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
