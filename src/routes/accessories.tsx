@@ -7,7 +7,7 @@ import { PhotoPlaceholder } from "../components/PhotoPlaceholder";
 import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
 import { useI18n } from "../lib/i18n";
 import {
-  ACCESSORY_CATEGORIES, filterAccessories, getAccessories, getSettings,
+  ACCESSORY_CATEGORIES, filterAccessories, getAccessories, getSettings, getCachedSettings,
   type Accessory,
 } from "../lib/storage";
 import { shopWhatsAppLink, bdt } from "../lib/wa";
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/accessories")({
 function AccessoriesPage() {
   const { tr, lang } = useI18n();
   const [all, setAll] = useState<Accessory[]>([]);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(getCachedSettings);
 
   useEffect(() => {
     const h = async () => {
@@ -53,7 +53,7 @@ function AccessoriesPage() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <main className="pt-24 pb-12">
+      <main className="pt-24 pb-12 page-enter">
         <section className="px-4 mb-6">
           <div className="mx-auto max-w-6xl text-center">
             <h1 className={`text-3xl md:text-5xl font-extrabold ${lang === "bn" ? "bn" : ""}`}>{tr("accessoriesTitle")}</h1>

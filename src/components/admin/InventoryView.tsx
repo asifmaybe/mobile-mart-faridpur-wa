@@ -1,11 +1,10 @@
 import { useMemo, useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, Search, AlertTriangle, XCircle, TrendingUp, Minus } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, AlertTriangle, XCircle, Minus } from "lucide-react";
 import {
   PART_BRANDS, PART_CATEGORIES, adjustStock, deletePart, generatePartId,
   getInventory, upsertPart, type InventoryPart, type PartCategory,
 } from "../../lib/storage";
 import { Modal, showToast } from "../../lib/ui";
-import { MarketPriceLookup } from "./MarketPriceLookup";
 import { useStorageRefresh } from "./useStorageRefresh";
 
 type Filter = "all" | "low" | "out";
@@ -23,7 +22,6 @@ export function InventoryView({ tr, lang }: { tr: (k: any) => string; lang: "en"
   const [editing, setEditing] = useState<InventoryPart | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
-  const [lookup, setLookup] = useState<{ brand?: string; model?: string } | null>(null);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -104,7 +102,6 @@ export function InventoryView({ tr, lang }: { tr: (k: any) => string; lang: "en"
                     <span className="text-xs font-semibold px-1">{tr("adjustStock")}</span>
                     <button onClick={() => adjustStock(p.partId, +1)} className="w-7 h-7 grid place-items-center rounded-full hover:bg-white/40" aria-label="Increment"><Plus size={14} /></button>
                   </div>
-                  <button onClick={() => setLookup({ brand: p.compatibleBrand, model: p.compatibleModel })} className="btn-glass !py-2 !px-3 text-xs"><TrendingUp size={14} /> {tr("checkMarketPrice")}</button>
                   <button onClick={() => setEditing(p)} className="btn-glass !py-2 !px-3 text-xs"><Pencil size={14} /></button>
                   <button onClick={() => setConfirmDel(p.partId)} className="btn-danger !py-2 !px-3 text-xs"><Trash2 size={14} /></button>
                 </div>
@@ -120,7 +117,6 @@ export function InventoryView({ tr, lang }: { tr: (k: any) => string; lang: "en"
           initial={editing}
           onCancel={() => { setAdding(false); setEditing(null); }}
           onSave={(part) => { upsertPart(part); setAdding(false); setEditing(null); showToast(tr("saved")); }}
-          onLookup={(brand, model) => setLookup({ brand, model })}
         />
       )}
 
@@ -130,18 +126,15 @@ export function InventoryView({ tr, lang }: { tr: (k: any) => string; lang: "en"
           <button onClick={() => { if (confirmDel) deletePart(confirmDel); setConfirmDel(null); showToast(tr("delete") + " ✓", "info"); }} className="btn-danger flex-1">{tr("delete")}</button>
         </div>
       </Modal>
-
-      {lookup && <MarketPriceLookup tr={tr} lang={lang} initialBrand={lookup.brand} initialModel={lookup.model} onClose={() => setLookup(null)} />}
     </div>
   );
 }
 
 function PartForm({
-  tr, lang, initial, onCancel, onSave, onLookup,
+  tr, lang, initial, onCancel, onSave,
 }: {
   tr: (k: any) => string; lang: "en" | "bn"; initial: InventoryPart | null;
   onCancel: () => void; onSave: (p: InventoryPart) => void;
-  onLookup: (brand: string, model: string) => void;
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const [p, setP] = useState<InventoryPart>(initial ?? {
@@ -181,10 +174,7 @@ function PartForm({
           </div>
         </div>
         <div>
-          <label className="label-caps mb-1.5 block flex items-center justify-between">
-            <span>{tr("compatibleModel")} *</span>
-            <button type="button" onClick={() => onLookup(p.compatibleBrand, p.compatibleModel)} className="text-accent-purple inline-flex items-center gap-1 normal-case tracking-normal text-[11px]"><TrendingUp size={12} /> {tr("checkMarketPrice")}</button>
-          </label>
+          <label className="label-caps mb-1.5 block">{tr("compatibleModel")} *</label>
           <input className="glass-input" required value={p.compatibleModel} onChange={(e) => set("compatibleModel", e.target.value)} />
         </div>
         <div className="grid grid-cols-2 gap-3">

@@ -9,7 +9,7 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { useI18n } from "../lib/i18n";
 import { CountUp } from "../lib/ui";
-import { getSettings, getAvailablePhones, getAccessories, isJustIn, type UsedPhone, type Accessory } from "../lib/storage";
+import { getSettings, getAvailablePhones, getAccessories, isJustIn, getCachedSettings, type UsedPhone, type Accessory } from "../lib/storage";
 import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
 
 import { JustInFeed } from "../components/JustInFeed";
@@ -49,7 +49,7 @@ const FAQS = [
 function Home() {
   const { tr, lang } = useI18n();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(getCachedSettings);
   const [featuredPhones, setFeaturedPhones] = useState<UsedPhone[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [detail, setDetail] = useState<UsedPhone | null>(null);
@@ -78,7 +78,6 @@ function Home() {
     return () => window.removeEventListener("repairshop:change", h);
   }, []);
 
-  if (!settings) return null;
 
   const openDetail = (p: UsedPhone, trigger: HTMLElement | null) => {
     triggerRef.current = trigger;

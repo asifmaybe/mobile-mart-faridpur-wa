@@ -71,7 +71,7 @@ const DEFAULT_SETTINGS: Settings = {
   address: "Faridpur New Market, 3rd Floor, Faridpur",
   addressBn: "ফরিদপুর নিউ মার্কেট, ৩য় তলা, ফরিদপুর",
   website: "",
-  hours: "Sat–Thu 10:00–21:00 · Fri Closed",
+  hours: "Sat – Thu 10:00 AM – 10:00 PM · Fri Closed",
   adminUsername: "admin",
   adminPassword: "repair2025",
 };
@@ -273,6 +273,8 @@ export async function getSettings(): Promise<Settings> {
     return getCachedSettings();
   }
   const settings = toCamelCaseSettings(data);
+  // Enforce new working hours (overrides any old database values)
+  settings.hours = DEFAULT_SETTINGS.hours;
   localStorage.setItem(KEYS.settings, JSON.stringify(settings));
   return settings;
 }
@@ -283,7 +285,10 @@ export function getCachedSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEYS.settings);
     if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    // Enforce new working hours (overrides any old cached values)
+    parsed.hours = DEFAULT_SETTINGS.hours;
+    return { ...DEFAULT_SETTINGS, ...parsed };
   } catch { return DEFAULT_SETTINGS; }
 }
 

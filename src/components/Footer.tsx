@@ -30,7 +30,7 @@ export function Footer() {
               <div className="font-bold">{name}</div>
             </div>
             <p className="text-sm text-text-secondary">
-              {lang === "bn" ? "বিশ্বস্ত মোবাইল রিপেয়ার সেবা।" : "Expert repair, trusted service."}
+              {lang === "bn" ? "বিশ্বস্ত মোবাইল ও অ্যাকসেসরিজ শপ।" : "Premium mobile shop, trusted service."}
             </p>
           </div>
           <div>

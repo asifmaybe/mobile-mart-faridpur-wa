@@ -9,7 +9,7 @@ import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
 import { PhoneDetailModal } from "../components/PhoneDetailModal";
 import { useI18n } from "../lib/i18n";
 import {
-  filterPhones, getAvailablePhones, isJustIn, getSettings,
+  filterPhones, getAvailablePhones, isJustIn, getSettings, getCachedSettings,
   type PhoneCondition, type UsedPhone,
 } from "../lib/storage";
 import { shopWhatsAppLink, bdt } from "../lib/wa";
@@ -32,7 +32,7 @@ const CONDITIONS: PhoneCondition[] = ["Excellent", "Good", "Fair"];
 function PhonesPage() {
   const { tr, lang } = useI18n();
   const [all, setAll] = useState<UsedPhone[]>([]);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(getCachedSettings);
 
   useEffect(() => {
     const h = async () => {
@@ -71,7 +71,7 @@ function PhonesPage() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <main className="pt-24 pb-12">
+      <main className="pt-24 pb-12 page-enter">
         <section className="px-4 mb-6">
           <div className="mx-auto max-w-6xl text-center">
             <h1 className={`text-3xl md:text-5xl font-extrabold ${lang === "bn" ? "bn" : ""}`}>{tr("usedPhonesTitle")}</h1>

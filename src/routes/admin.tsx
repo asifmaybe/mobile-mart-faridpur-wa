@@ -14,7 +14,6 @@ import {
   type Memo, type Receipt, type ReceiptItem, updateMemo, deleteMemo, generateToken
 } from "../lib/storage";
 import { showToast, Modal } from "../lib/ui";
-import { MarketPricesView } from "../components/admin/MarketPriceLookup";
 
 import { emptyItem, openReceiptPrint, buildWhatsAppText, ReceiptItemsList, ReceiptSummaryCard } from "../components/admin/ReceiptItemsPanel";
 import { BuySellView } from "../components/admin/BuySellView";
@@ -24,7 +23,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tab = "dashboard" | "new" | "memos" | "buysell" | "market" | "settings";
+type Tab = "dashboard" | "new" | "memos" | "buysell";
 
 function AdminPage() {
   const { tr, lang } = useI18n();
@@ -42,16 +41,130 @@ function AdminPage() {
   return <AdminShell onLogout={() => { setAuthed(false); setAuthedState(false); }} tr={tr} lang={lang} />;
 }
 
+
+// The recovery code that unlocks password reset (share this only with the shop owner)
+const RECOVERY_CODE = "MART-RESET-2025";
+
+function ForgotPasswordModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [step, setStep] = useState<"code" | "newpass">("code");
+  const [code, setCode] = useState("");
+  const [codeErr, setCodeErr] = useState(false);
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [passErr, setPassErr] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+
+  // Reset internal state when modal closes
+  const handleClose = () => {
+    setStep("code"); setCode(""); setCodeErr(false);
+    setNewPass(""); setConfirmPass(""); setPassErr("");
+    setDone(false); setSaving(false);
+    onClose();
+  };
+
+  const verifyCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code.trim() === RECOVERY_CODE) {
+      setCodeErr(false);
+      setStep("newpass");
+    } else {
+      setCodeErr(true);
+      setTimeout(() => setCodeErr(false), 600);
+    }
+  };
+
+  const saveNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPass.length < 6) { setPassErr("Password must be at least 6 characters."); return; }
+    if (newPass !== confirmPass) { setPassErr("Passwords do not match."); return; }
+    setSaving(true);
+    const s = await getSettings();
+    await saveSettings({ ...s, adminPassword: newPass });
+    setSaving(false);
+    setDone(true);
+  };
+
+  return (
+    <Modal open={open} onClose={handleClose} title="Reset Admin Password">
+      {done ? (
+        <div className="text-center py-4 space-y-4">
+          <div className="w-14 h-14 rounded-full bg-accent-green/15 grid place-items-center mx-auto">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5BB890" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <p className="font-semibold text-text-primary">Password updated!</p>
+          <p className="text-sm text-text-secondary">You can now log in with your new password.</p>
+          <button className="btn-primary w-full" onClick={handleClose}>Back to Login</button>
+        </div>
+      ) : step === "code" ? (
+        <form onSubmit={verifyCode} className={`space-y-4 ${codeErr ? "shake" : ""}`}>
+          <div>
+            <label className="label-caps mb-1.5 block">Recovery Code</label>
+            <input
+              className="glass-input"
+              type="password"
+              placeholder="Enter recovery code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              autoFocus
+              autoComplete="off"
+            />
+            {codeErr && <p className="text-accent-red text-xs mt-1.5">Incorrect recovery code.</p>}
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button type="button" className="btn-glass flex-1" onClick={handleClose}>Cancel</button>
+            <button type="submit" className="btn-primary flex-1">Verify</button>
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={saveNewPassword} className="space-y-4">
+          <p className="text-sm text-text-secondary">Recovery code verified. Set your new password below.</p>
+          <div>
+            <label className="label-caps mb-1.5 block">New Password</label>
+            <input
+              className="glass-input"
+              type="password"
+              placeholder="Min. 6 characters"
+              value={newPass}
+              onChange={(e) => { setNewPass(e.target.value); setPassErr(""); }}
+              autoFocus
+              autoComplete="new-password"
+            />
+          </div>
+          <div>
+            <label className="label-caps mb-1.5 block">Confirm New Password</label>
+            <input
+              className="glass-input"
+              type="password"
+              placeholder="Repeat new password"
+              value={confirmPass}
+              onChange={(e) => { setConfirmPass(e.target.value); setPassErr(""); }}
+              autoComplete="new-password"
+            />
+          </div>
+          {passErr && <p className="text-accent-red text-xs">{passErr}</p>}
+          <div className="flex gap-2 pt-1">
+            <button type="button" className="btn-glass flex-1" onClick={() => setStep("code")}>Back</button>
+            <button type="submit" className="btn-primary flex-1" disabled={saving}>
+              {saving ? "Saving…" : "Save Password"}
+            </button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  );
+}
+
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const { tr, lang } = useI18n();
-  const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState(false);
+  const [showReset, setShowReset] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const s = await getSettings();
-    if (u === s.adminUsername && p === s.adminPassword) {
+    if (p === s.adminPassword) {
       setAuthed(true);
       onLogin();
     } else {
@@ -73,21 +186,41 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         <div className="space-y-3">
           <div>
             <label className="label-caps mb-1.5 block">{tr("username")}</label>
-            <input className="glass-input" value={u} onChange={(e) => setU(e.target.value)} autoComplete="username" />
+            <input
+              className="glass-input opacity-70 cursor-not-allowed"
+              value="admin"
+              readOnly
+              autoComplete="username"
+            />
           </div>
           <div>
             <label className="label-caps mb-1.5 block">{tr("password")}</label>
-            <input className="glass-input" type="password" value={p} onChange={(e) => setP(e.target.value)} autoComplete="current-password" />
+            <input
+              className="glass-input"
+              type="password"
+              value={p}
+              onChange={(e) => setP(e.target.value)}
+              autoComplete="current-password"
+              autoFocus
+            />
           </div>
         </div>
         {err && <p className="text-accent-red text-sm mt-3 text-center">{tr("invalidCreds")}</p>}
         <button type="submit" className="btn-primary w-full mt-5">{tr("login")} <ArrowRight size={16} /></button>
-        <p className="text-xs text-text-muted text-center mt-4">Default: admin / repair2025</p>
-        <Link to="/" className="block text-center text-xs text-accent-blue mt-3">← {lang === "bn" ? "হোম" : "Back to site"}</Link>
+        <button
+          type="button"
+          className="block w-full text-center text-xs text-accent-blue mt-3 hover:underline"
+          onClick={() => setShowReset(true)}
+        >
+          Forgot password ?
+        </button>
+        <Link to="/" className="block text-center text-xs text-text-muted mt-2">← {lang === "bn" ? "হোম" : "Back to site"}</Link>
       </form>
+      <ForgotPasswordModal open={showReset} onClose={() => setShowReset(false)} />
     </div>
   );
 }
+
 
 function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any) => string; lang: "en" | "bn" }) {
   const [tab, setTab] = useState<Tab>("dashboard");
@@ -98,9 +231,6 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
     { id: "new",          Icon: Plus,            label: tr("newMemo") },
     { id: "memos",        Icon: ClipboardList,   label: tr("allMemos") },
     { id: "buysell",      Icon: ShoppingCart,    label: tr("inventoryTitle") },
-    { id: "market",       Icon: TrendingUp,      label: tr("marketPriceTrackerTitle") },
-
-    { id: "settings",     Icon: SettingsIcon,    label: tr("settings") },
   ];
 
   const currentLabel = TABS.find((t) => t.id === tab)?.label ?? "";
@@ -143,9 +273,6 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
           {tab === "new" && <NewMemo tr={tr} lang={lang} go={setTab} />}
           {tab === "memos" && <AllMemos tr={tr} lang={lang} />}
           {tab === "buysell" && <BuySellView tr={tr} lang={lang} />}
-          {tab === "market" && <MarketPricesView tr={tr} lang={lang} />}
-
-          {tab === "settings" && <SettingsView tr={tr} lang={lang} />}
         </main>
       </div>
     </div>
@@ -469,83 +596,3 @@ function UpdateMemoModal({ memo, onClose, tr, lang }: { memo: Memo; onClose: () 
   );
 }
 
-function SettingsView({ tr, lang }: { tr: (k: any) => string; lang: "en" | "bn" }) {
-  const [s, setS] = useState(getCachedSettings());
-  const [newPass, setNewPass] = useState("");
-  const setF = (k: keyof ReturnType<typeof getCachedSettings>, v: string) => setS((x) => ({ ...x, [k]: v }));
-
-  useEffect(() => {
-    getSettings().then(setS);
-  }, []);
-
-  const save = (e: React.FormEvent) => {
-    e.preventDefault();
-    const updated = { ...s, adminPassword: newPass.trim() || s.adminPassword };
-    saveSettings(updated);
-    setS(updated);
-    setNewPass("");
-    showToast(tr("saved"));
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      <h1 className="hidden md:block text-2xl font-bold">{tr("settings")}</h1>
-      <form onSubmit={save} className="glass p-6 space-y-4">
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="label-caps mb-1.5 block">{tr("shopName")} (EN)</label>
-            <input className="glass-input" value={s.shopName} onChange={(e) => setF("shopName", e.target.value)} />
-          </div>
-          <div>
-            <label className="label-caps mb-1.5 block">{tr("shopName")} (বাংলা)</label>
-            <input className="glass-input bn" value={s.shopNameBn} onChange={(e) => setF("shopNameBn", e.target.value)} />
-          </div>
-          <div>
-            <label className="label-caps mb-1.5 block">{tr("phone")}</label>
-            <input className="glass-input" value={s.phone} onChange={(e) => setF("phone", e.target.value)} />
-          </div>
-          <div>
-            <label className="label-caps mb-1.5 block">{tr("whatsappNumber")}</label>
-            <input className="glass-input" value={s.whatsapp} onChange={(e) => setF("whatsapp", e.target.value)} />
-          </div>
-        </div>
-        <div>
-          <label className="label-caps mb-1.5 block">{tr("address")} (EN)</label>
-          <input className="glass-input" value={s.address} onChange={(e) => setF("address", e.target.value)} />
-        </div>
-        <div>
-          <label className="label-caps mb-1.5 block">{tr("address")} (বাংলা)</label>
-          <input className="glass-input bn" value={s.addressBn} onChange={(e) => setF("addressBn", e.target.value)} />
-        </div>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="label-caps mb-1.5 block">{tr("email")}</label>
-            <input className="glass-input" value={s.email} onChange={(e) => setF("email", e.target.value)} />
-          </div>
-          <div>
-            <label className="label-caps mb-1.5 block">{tr("website")}</label>
-            <input className="glass-input" value={s.website} onChange={(e) => setF("website", e.target.value)} />
-          </div>
-        </div>
-        <div>
-          <label className="label-caps mb-1.5 block">{tr("hours")}</label>
-          <input className="glass-input" value={s.hours} onChange={(e) => setF("hours", e.target.value)} />
-        </div>
-        <div className="pt-4 border-t border-black/10">
-          <div className="label-caps mb-3 inline-flex items-center gap-1"><Lock size={12} /> {lang === "bn" ? "অ্যাডমিন" : "Admin Login"}</div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="label-caps mb-1.5 block">{tr("username")}</label>
-              <input className="glass-input" value={s.adminUsername} onChange={(e) => setF("adminUsername", e.target.value)} />
-            </div>
-            <div>
-              <label className="label-caps mb-1.5 block">{tr("changePass")}</label>
-              <input type="password" className="glass-input" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder={lang === "bn" ? "খালি রাখলে অপরিবর্তিত" : "Leave blank to keep"} />
-            </div>
-          </div>
-        </div>
-        <button type="submit" className="btn-primary w-full">{tr("save")}</button>
-      </form>
-    </div>
-  );
-}

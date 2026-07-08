@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus, Pencil, Trash2, Search, ShoppingCart, Smartphone, Headphones,
-  Package, Coins, TrendingUp, AlertTriangle, X, Upload,
+  Package, Coins, TrendingUp, AlertTriangle, X, Upload, Crop,
 } from "lucide-react";
 import { Modal, showToast, StatusBadge } from "../../lib/ui";
 import {
@@ -49,7 +50,7 @@ export function BuySellView({ tr }: { tr: (k: any) => string; lang: "en" | "bn" 
 
   return (
     <div className="space-y-4">
-      <h1 className="hidden md:block text-2xl font-bold inline-flex items-center gap-2"><ShoppingCart size={22} /> {tr("buySellTitle")}</h1>
+      <h1 className="hidden md:block text-2xl font-bold inline-flex items-center gap-2">{tr("buySellTitle")}</h1>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {summary.map((c, i) => (
@@ -244,7 +245,7 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
 
   const gallery = p.galleryUrls ?? [];
   const setGallery = (next: string[]) => set("galleryUrls", next);
-  const removePhoto = (i: number) => setGallery(gallery.filter((_, idx) => idx !== i));
+  const [cropTarget, setCropTarget] = useState<{ index: number; src: string } | null>(null);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -312,26 +313,25 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
             </Field>
           )}
         </div>
-        <Field label={tr("photosLabel") || "Photos (Upload 3:4 ratio)"}>
-          <div className="flex flex-wrap gap-2 items-center">
-            {gallery.map((u, i) => (
-              <div key={i} className="relative w-16 aspect-[3/4] rounded-xl overflow-hidden shadow-sm shrink-0 border border-white/20">
-                <img src={u} alt="Preview" className="w-full h-full object-cover" />
-                <div className="absolute bottom-0 inset-x-0 bg-black/60 text-[9px] text-white text-center py-0.5 font-semibold backdrop-blur-md">
-                  {i === 0 ? "Primary" : "Secondary"}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removePhoto(i)}
-                  className="absolute inset-0 bg-black/50 text-white grid place-items-center opacity-0 hover:opacity-100 transition-opacity"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ))}
-            <ImageUploader onUpload={(b64) => setGallery([...gallery, b64])} />
-          </div>
+        <Field label={tr("photosLabel") || "Photos"}>
+          <MultiPhotoUploader
+            gallery={gallery}
+            onGalleryChange={setGallery}
+            onCropRequest={(index, src) => setCropTarget({ index, src })}
+          />
         </Field>
+        {cropTarget && (
+          <PhotoCropModal
+            src={cropTarget.src}
+            onClose={() => setCropTarget(null)}
+            onSave={(cropped) => {
+              const next = [...gallery];
+              next[cropTarget.index] = cropped;
+              setGallery(next);
+              setCropTarget(null);
+            }}
+          />
+        )}
         <Field label={tr("shortDescription")}>
           <textarea
             value={p.shortDescription ?? ""}
@@ -526,21 +526,41 @@ function AccessoryForm({ tr, initial, onClose, onSave }: {
           <Field label={tr("dateAdded") || "Date Added"}>
             <input type="date" value={a.dateAdded.slice(0, 10)} onChange={(e) => set("dateAdded", new Date(e.target.value).toISOString())} className="glass-input" />
           </Field>
-          <Field label={tr("photoUrl") || "Photo (Upload 3:4 ratio)"}>
-            <div className="flex gap-2 items-center">
+          <Field label={tr("photoUrl") || "Photo"}>
+            <div className="flex gap-3 items-end">
               {a.photoUrl ? (
-                <div className="relative w-16 aspect-[3/4] rounded-xl overflow-hidden shadow-sm shrink-0 border border-white/20">
+                <div className="relative shrink-0 rounded-xl overflow-hidden shadow-md border border-white/20" style={{ width: 72, aspectRatio: "3/4" }}>
                   <img src={a.photoUrl} alt="Preview" className="w-full h-full object-cover" />
-                  <button 
-                    type="button" 
-                    onClick={() => set("photoUrl", "")} 
-                    className="absolute inset-0 bg-black/50 text-white grid place-items-center opacity-0 hover:opacity-100 transition-opacity"
-                  >
-                    <X size={16} />
-                  </button>
+                  <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex flex-col gap-1.5 items-center justify-center backdrop-blur-[2px]">
+                    <button
+                      type="button"
+                      onClick={() => set("photoUrl", "")}
+                      className="flex items-center gap-1 text-[10px] font-semibold text-white bg-red-500/60 hover:bg-red-500/80 rounded-lg px-2 py-1 transition-colors"
+                    >
+                      <X size={11} /> Remove
+                    </button>
+                  </div>
                 </div>
               ) : null}
-              <ImageUploader onUpload={(b64) => set("photoUrl", b64)} />
+              <label
+                className="shrink-0 rounded-xl border-2 border-dashed border-accent-purple/40 hover:border-accent-purple/80 hover:bg-accent-purple/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-text-muted hover:text-accent-purple"
+                style={{ width: 72, aspectRatio: "3/4" }}
+              >
+                <Upload size={18} />
+                <span className="text-[9px] font-semibold tracking-wide">Upload</span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const img = await loadImageFromFile(file);
+                    set("photoUrl", compressToDataUrl(img));
+                    e.target.value = "";
+                  }}
+                />
+              </label>
             </div>
           </Field>
         </div>
@@ -605,39 +625,317 @@ function PhoneStepper({ status }: { status: PhoneStatus }) {
   );
 }
 
-function ImageUploader({ onUpload }: { onUpload: (base64: string) => void }) {
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
+const MAX_PHOTOS = 7;
+const OUT_W = 900;
+const OUT_H = 1200; // 3:4
+
+function loadImageFromFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = (e) => {
       const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 800;
-        let scaleSize = 1;
-        if (img.width > MAX_WIDTH) {
-          scaleSize = MAX_WIDTH / img.width;
-        }
-        canvas.width = img.width * scaleSize;
-        canvas.height = img.height * scaleSize;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
-        // Output as WebP or JPEG to save space
-        const dataUrl = canvas.toDataURL("image/webp", 0.7);
-        onUpload(dataUrl);
-      };
-      img.src = event.target?.result as string;
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = e.target?.result as string;
     };
+    reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+function compressToDataUrl(img: HTMLImageElement): string {
+  // Scale to max 1200px on long edge while keeping aspect ratio
+  const MAX = 1200;
+  let w = img.naturalWidth, h = img.naturalHeight;
+  if (w > MAX || h > MAX) {
+    const r = Math.min(MAX / w, MAX / h);
+    w = Math.round(w * r);
+    h = Math.round(h * r);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL("image/webp", 0.88);
+}
+
+// ── MultiPhotoUploader ────────────────────────────────────────────────────────
+function MultiPhotoUploader({
+  gallery,
+  onGalleryChange,
+  onCropRequest,
+}: {
+  gallery: string[];
+  onGalleryChange: (next: string[]) => void;
+  onCropRequest: (index: number, src: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const remaining = MAX_PHOTOS - gallery.length;
+    if (remaining <= 0) { showToast(`Max ${MAX_PHOTOS} photos allowed`); return; }
+    const toProcess = files.slice(0, remaining);
+    const newUrls: string[] = [];
+    for (const file of toProcess) {
+      const img = await loadImageFromFile(file);
+      newUrls.push(compressToDataUrl(img));
+    }
+    onGalleryChange([...gallery, ...newUrls]);
+    // Reset input so same file can be re-selected
+    if (inputRef.current) inputRef.current.value = "";
   };
 
+  const remove = (i: number) => onGalleryChange(gallery.filter((_, idx) => idx !== i));
+
   return (
-    <label className="btn-glass !py-1.5 !px-3 shrink-0 cursor-pointer inline-flex items-center justify-center">
-      <Upload size={16} />
-      <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
-    </label>
+    <div>
+      {/* Thumbnail grid */}
+      <div className="flex flex-wrap gap-2 items-end mb-3">
+        {gallery.map((src, i) => (
+          <div
+            key={i}
+            className="relative shrink-0 rounded-xl overflow-hidden shadow-md border border-white/20"
+            style={{ width: 72, aspectRatio: "3/4" }}
+          >
+            <img src={src} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+
+            {/* Primary badge */}
+            {i === 0 && (
+              <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-accent-purple/90 to-transparent text-[9px] text-white text-center pt-1 pb-2 font-bold tracking-wide">
+                PRIMARY
+              </div>
+            )}
+
+            {/* Hover overlay: Crop + Remove */}
+            <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex flex-col gap-1.5 items-center justify-center backdrop-blur-[2px]">
+              <button
+                type="button"
+                onClick={() => onCropRequest(i, src)}
+                className="flex items-center gap-1 text-[10px] font-semibold text-white bg-white/20 hover:bg-white/30 rounded-lg px-2 py-1 transition-colors"
+              >
+                <Crop size={11} /> Adjust
+              </button>
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                className="flex items-center gap-1 text-[10px] font-semibold text-white bg-red-500/60 hover:bg-red-500/80 rounded-lg px-2 py-1 transition-colors"
+              >
+                <X size={11} /> Remove
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* Add button */}
+        {gallery.length < MAX_PHOTOS && (
+          <label
+            className="relative shrink-0 rounded-xl border-2 border-dashed border-accent-purple/40 hover:border-accent-purple/80 hover:bg-accent-purple/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-text-muted hover:text-accent-purple"
+            style={{ width: 72, aspectRatio: "3/4" }}
+          >
+            <Upload size={18} />
+            <span className="text-[9px] font-semibold tracking-wide">
+              {gallery.length === 0 ? "Add Photos" : `${gallery.length}/${MAX_PHOTOS}`}
+            </span>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              className="hidden"
+              onChange={handleFiles}
+            />
+          </label>
+        )}
+      </div>
+
+      {/* Hint */}
+      <p className="text-[11px] text-text-muted">
+        {gallery.length === 0
+          ? "Upload up to 7 photos. First photo becomes the primary listing image."
+          : `${gallery.length} of ${MAX_PHOTOS} photos · First is primary · Click any photo to adjust crop`}
+      </p>
+    </div>
+  );
+}
+
+// ── PhotoCropModal ────────────────────────────────────────────────────────────
+function PhotoCropModal({
+  src,
+  onClose,
+  onSave,
+}: {
+  src: string;
+  onClose: () => void;
+  onSave: (cropped: string) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const minZoomRef = useRef(1); // minimum zoom to always fill the canvas
+
+  // State for pan & zoom
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragging = useRef(false);
+  const lastPos = useRef({ x: 0, y: 0 });
+
+  // Display scale: canvas is OUT_W wide, display is DISPLAY_W px — used to scale drag deltas
+  const DISPLAY_H = 400;
+  const DISPLAY_W = Math.round(DISPLAY_H * OUT_W / OUT_H); // 300
+  const displayScale = OUT_W / DISPLAY_W; // 3.0
+
+  // Helper: clamp offset so image always fully covers the 3:4 canvas
+  const clampOffset = (z: number, ox: number, oy: number) => {
+    const img = imgRef.current;
+    if (!img) return { x: ox, y: oy };
+    const drawW = img.naturalWidth * z;
+    const drawH = img.naturalHeight * z;
+    const maxX = Math.max(0, (drawW - OUT_W) / 2);
+    const maxY = Math.max(0, (drawH - OUT_H) / 2);
+    return {
+      x: Math.max(-maxX, Math.min(maxX, ox)),
+      y: Math.max(-maxY, Math.min(maxY, oy)),
+    };
+  };
+
+  // Load image and compute initial zoom to fill 3:4 crop
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      imgRef.current = img;
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      const cropRatio = OUT_W / OUT_H;
+      const minZoom = imgRatio > cropRatio
+        ? OUT_H / img.naturalHeight
+        : OUT_W / img.naturalWidth;
+      minZoomRef.current = minZoom;
+      setZoom(minZoom);
+      setOffset({ x: 0, y: 0 });
+    };
+    img.src = src;
+  }, [src]);
+
+  // Redraw canvas whenever zoom/offset changes
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const img = imgRef.current;
+    if (!canvas || !img) return;
+    const ctx = canvas.getContext("2d")!;
+    const drawW = img.naturalWidth * zoom;
+    const drawH = img.naturalHeight * zoom;
+    const x = (OUT_W - drawW) / 2 + offset.x;
+    const y = (OUT_H - drawH) / 2 + offset.y;
+    ctx.clearRect(0, 0, OUT_W, OUT_H);
+    ctx.drawImage(img, x, y, drawW, drawH);
+  }, [zoom, offset]);
+
+  // ── Pointer events ──────────────────────────────────────────────────────────
+  const onPointerDown = (e: React.PointerEvent) => {
+    dragging.current = true;
+    lastPos.current = { x: e.clientX, y: e.clientY };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    // Scale display-pixel deltas to canvas-pixel deltas
+    const dx = (e.clientX - lastPos.current.x) * displayScale;
+    const dy = (e.clientY - lastPos.current.y) * displayScale;
+    lastPos.current = { x: e.clientX, y: e.clientY };
+    setOffset((o) => clampOffset(zoom, o.x + dx, o.y + dy));
+  };
+  const onPointerUp = () => { dragging.current = false; };
+
+  // ── Wheel zoom ──────────────────────────────────────────────────────────────
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoom((z) => {
+      const newZ = Math.max(minZoomRef.current, Math.min(10, z * (e.deltaY < 0 ? 1.08 : 0.93)));
+      // Re-clamp offset for the new zoom level
+      setOffset((o) => clampOffset(newZ, o.x, o.y));
+      return newZ;
+    });
+  };
+
+  // ── Save ────────────────────────────────────────────────────────────────────
+  const save = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    onSave(canvas.toDataURL("image/webp", 0.88));
+  };
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)" }}
+    >
+      <div className="glass rounded-2xl overflow-hidden shadow-2xl flex flex-col" style={{ maxWidth: 380, width: "100%" }}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/10">
+          <div>
+            <div className="font-bold text-sm">Adjust Photo</div>
+            <div className="text-[11px] text-text-muted mt-0.5">Drag to pan · Scroll to zoom · Output: 3:4</div>
+          </div>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-black/10 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Canvas */}
+        <div className="flex items-center justify-center bg-black/30 p-4">
+          <div
+            className="rounded-xl overflow-hidden shadow-inner border border-white/20"
+            style={{ width: DISPLAY_W, height: DISPLAY_H, cursor: "grab" }}
+          >
+            <canvas
+              ref={canvasRef}
+              width={OUT_W}
+              height={OUT_H}
+              style={{ width: DISPLAY_W, height: DISPLAY_H, display: "block", touchAction: "none" }}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerLeave={onPointerUp}
+              onWheel={onWheel}
+            />
+          </div>
+        </div>
+
+        {/* Zoom slider */}
+        <div className="px-5 pb-3 flex items-center gap-3">
+          <span className="text-[11px] text-text-muted w-8">Zoom</span>
+          <input
+            type="range"
+            min={minZoomRef.current}
+            max={10}
+            step={0.001}
+            value={zoom}
+            onChange={(e) => {
+              const newZ = Number(e.target.value);
+              setZoom(newZ);
+              setOffset((o) => clampOffset(newZ, o.x, o.y));
+            }}
+            className="flex-1 accent-[#7C6FE8]"
+          />
+          <span className="text-[11px] text-text-muted w-10 text-right">{(zoom * 100).toFixed(0)}%</span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 px-5 pb-5">
+          <button type="button" onClick={onClose} className="btn-glass flex-1 text-sm py-2">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={save}
+            className="flex-1 py-2 text-sm font-semibold text-white rounded-xl transition-all"
+            style={{ background: "linear-gradient(135deg,#7C6FE8,#5847C7)" }}
+          >
+            Save Crop
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }

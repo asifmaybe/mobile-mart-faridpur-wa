@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Flame, ChevronLeft, ChevronRight, ArrowRight, Eye } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useI18n } from "../lib/i18n";
-import { getJustInItems, type JustInItem, type UsedPhone, getSettings } from "../lib/storage";
+import { getJustInItems, type JustInItem, type UsedPhone, getSettings, getCachedSettings } from "../lib/storage";
 import { PhotoPlaceholder } from "./PhotoPlaceholder";
 import { WhatsAppIcon } from "./icons/WhatsAppIcon";
 import { shopWhatsAppLink, bdt } from "../lib/wa";
@@ -29,7 +29,7 @@ export function JustInFeed() {
   const [detail, setDetail] = useState<UsedPhone | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
 
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(getCachedSettings);
 
   useEffect(() => {
     const refresh = async () => {

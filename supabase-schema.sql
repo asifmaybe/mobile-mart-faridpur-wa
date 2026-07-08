@@ -95,9 +95,9 @@ CREATE TABLE IF NOT EXISTS settings (
   whatsapp         TEXT NOT NULL DEFAULT '8801318630942',
   email            TEXT NOT NULL DEFAULT 'jadu0033@gmail.com',
   address          TEXT NOT NULL DEFAULT 'Faridpur New Market, 3rd Floor, Faridpur',
-  address_bn       TEXT NOT NULL DEFAULT 'ফরিদপুর নিউ মার্কেট, ৩য় তলা, ফরিদপুর',
+  address_bn       TEXT NOT NULL DEFAULT ' ৩য় তলা, ফরিদপুর',
   website          TEXT NOT NULL DEFAULT '',
-  hours            TEXT NOT NULL DEFAULT 'Sat–Thu 10:00–21:00 · Fri Closed',
+  hours            TEXT NOT NULL DEFAULT '',
   admin_username   TEXT NOT NULL DEFAULT 'admin',
   admin_password   TEXT NOT NULL DEFAULT 'repair2025'
 );
