@@ -8,6 +8,7 @@ import { Modal, showToast, StatusBadge } from "../../lib/ui";
 import {
   ACCESSORY_CATEGORIES, deleteAccessory, deletePhone, generateAccessoryId, generatePhoneId,
   getAccessories, getPhones, recomputeAccessoryStatus, upsertAccessory, upsertPhone,
+  uploadImageToSupabase, deleteImageFromSupabase,
   type Accessory, type AccessoryCategory, type AccessoryStatus, type PhoneCondition,
   type PhoneStatus, type UsedPhone,
 } from "../../lib/storage";
@@ -246,6 +247,7 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
   const gallery = p.galleryUrls ?? [];
   const setGallery = (next: string[]) => set("galleryUrls", next);
   const [cropTarget, setCropTarget] = useState<{ index: number; src: string } | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -318,6 +320,7 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
             gallery={gallery}
             onGalleryChange={setGallery}
             onCropRequest={(index, src) => setCropTarget({ index, src })}
+            onUploadingChange={setIsUploading}
           />
         </Field>
         {cropTarget && (
@@ -351,7 +354,7 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
         )}
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className="btn-glass flex-1">{tr("cancel")}</button>
-          <button type="submit" className="btn-primary flex-1">{tr("save")}</button>
+          <button type="submit" disabled={isUploading} className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed">{tr("save")}</button>
         </div>
       </form>
     </Modal>
@@ -480,6 +483,10 @@ function AccessoryForm({ tr, initial, onClose, onSave }: {
     purchasePrice: 0, sellingPrice: 0, stockQuantity: 0, photoUrl: "",
     status: "In Stock", dateAdded: todayISO(),
   });
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadAbort, setUploadAbort] = useState<AbortController | null>(null);
+
   useEffect(() => {
     if (!initial) generateAccessoryId().then((id) => setA((s) => ({ ...s, id })));
   }, [initial]);
@@ -531,15 +538,47 @@ function AccessoryForm({ tr, initial, onClose, onSave }: {
               {a.photoUrl ? (
                 <div className="relative shrink-0 rounded-xl overflow-hidden shadow-md border border-white/20" style={{ width: 72, aspectRatio: "3/4" }}>
                   <img src={a.photoUrl} alt="Preview" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex flex-col gap-1.5 items-center justify-center backdrop-blur-[2px]">
+                  <div className="absolute inset-x-0 bottom-0 p-1 flex bg-gradient-to-t from-black/80 to-transparent">
                     <button
                       type="button"
-                      onClick={() => set("photoUrl", "")}
-                      className="flex items-center gap-1 text-[10px] font-semibold text-white bg-red-500/60 hover:bg-red-500/80 rounded-lg px-2 py-1 transition-colors"
+                      onClick={() => {
+                        deleteImageFromSupabase(a.photoUrl);
+                        set("photoUrl", "");
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-white bg-red-500/80 rounded py-1 backdrop-blur-md"
                     >
                       <X size={11} /> Remove
                     </button>
                   </div>
+                </div>
+              ) : isUploading ? (
+                <div className="relative shrink-0 rounded-xl overflow-hidden shadow-md border border-white/20 bg-black/40 flex flex-col items-center justify-center gap-2" style={{ width: 72, aspectRatio: "3/4" }}>
+                  <div className="relative w-8 h-8">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="16" cy="16" r="14" stroke="rgba(255,255,255,0.1)" strokeWidth="3" fill="none" />
+                      <circle
+                        cx="16"
+                        cy="16"
+                        r="14"
+                        stroke="#7C6FE8"
+                        strokeWidth="3"
+                        fill="none"
+                        strokeDasharray="88"
+                        strokeDashoffset={88 - (88 * uploadProgress) / 100}
+                        className="transition-all duration-200"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-[9px] font-semibold text-white">{uploadProgress}%</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => uploadAbort?.abort()}
+                    className="text-[9px] font-semibold text-accent-red hover:bg-accent-red/20 px-2 py-0.5 rounded transition-colors"
+                  >
+                    Cancel
+                  </button>
                 </div>
               ) : null}
               <label
@@ -555,9 +594,24 @@ function AccessoryForm({ tr, initial, onClose, onSave }: {
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    const img = await loadImageFromFile(file);
-                    set("photoUrl", compressToDataUrl(img));
-                    e.target.value = "";
+                    setIsUploading(true);
+                    setUploadProgress(0);
+                    const abort = new AbortController();
+                    setUploadAbort(abort);
+                    try {
+                      const img = await loadImageFromFile(file);
+                      const base64 = compressToDataUrl(img);
+                      set("photoUrl", await uploadImageToSupabase(base64, setUploadProgress, abort.signal));
+                    } catch(err: any) {
+                      if (err.message !== "Upload cancelled") {
+                        showToast("Upload failed");
+                        console.error(err);
+                      }
+                    } finally {
+                      setIsUploading(false);
+                      setUploadAbort(null);
+                      e.target.value = "";
+                    }
                   }}
                 />
               </label>
@@ -569,7 +623,7 @@ function AccessoryForm({ tr, initial, onClose, onSave }: {
         )}
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={onClose} className="btn-glass flex-1">{tr("cancel")}</button>
-          <button type="submit" className="btn-primary flex-1">{tr("save")}</button>
+          <button type="submit" disabled={isUploading} className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed">{tr("save")}</button>
         </div>
       </form>
     </Modal>
@@ -664,30 +718,73 @@ function MultiPhotoUploader({
   gallery,
   onGalleryChange,
   onCropRequest,
+  onUploadingChange,
 }: {
   gallery: string[];
   onGalleryChange: (next: string[]) => void;
   onCropRequest: (index: number, src: string) => void;
+  onUploadingChange?: (isUploading: boolean) => void;
 }) {
+  type UploadTask = { id: string; progress: number; abortController: AbortController };
+  const [uploads, setUploads] = useState<UploadTask[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    onUploadingChange?.(uploads.length > 0);
+  }, [uploads.length, onUploadingChange]);
 
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     const remaining = MAX_PHOTOS - gallery.length;
     if (remaining <= 0) { showToast(`Max ${MAX_PHOTOS} photos allowed`); return; }
+    
     const toProcess = files.slice(0, remaining);
-    const newUrls: string[] = [];
-    for (const file of toProcess) {
-      const img = await loadImageFromFile(file);
-      newUrls.push(compressToDataUrl(img));
+    
+    const newTasks = toProcess.map(() => ({
+      id: Math.random().toString(36).slice(2),
+      progress: 0,
+      abortController: new AbortController()
+    }));
+    
+    setUploads(prev => [...prev, ...newTasks]);
+    
+    const successfulUrls: string[] = [];
+    
+    await Promise.all(
+      toProcess.map(async (file, idx) => {
+        const task = newTasks[idx];
+        try {
+          const img = await loadImageFromFile(file);
+          const base64 = compressToDataUrl(img);
+          const url = await uploadImageToSupabase(
+            base64,
+            (pct) => setUploads(prev => prev.map(t => t.id === task.id ? { ...t, progress: pct } : t)),
+            task.abortController.signal
+          );
+          successfulUrls.push(url);
+        } catch (err: any) {
+          if (err.message !== "Upload cancelled") {
+            showToast("Upload failed");
+            console.error(err);
+          }
+        } finally {
+          setUploads(prev => prev.filter(t => t.id !== task.id));
+        }
+      })
+    );
+    
+    if (successfulUrls.length > 0) {
+      onGalleryChange([...gallery, ...successfulUrls]);
     }
-    onGalleryChange([...gallery, ...newUrls]);
-    // Reset input so same file can be re-selected
+    
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const remove = (i: number) => onGalleryChange(gallery.filter((_, idx) => idx !== i));
+  const remove = (i: number) => {
+    deleteImageFromSupabase(gallery[i]);
+    onGalleryChange(gallery.filter((_, idx) => idx !== i));
+  };
 
   return (
     <div>
@@ -709,24 +806,63 @@ function MultiPhotoUploader({
             )}
 
             {/* Hover overlay: Crop + Remove */}
-            <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex flex-col gap-1.5 items-center justify-center backdrop-blur-[2px]">
+            <div className="absolute inset-x-0 bottom-0 p-1 flex gap-1 bg-gradient-to-t from-black/80 to-transparent">
               <button
                 type="button"
                 onClick={() => onCropRequest(i, src)}
-                className="flex items-center gap-1 text-[10px] font-semibold text-white bg-white/20 hover:bg-white/30 rounded-lg px-2 py-1 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-white bg-white/20 rounded py-1 backdrop-blur-md"
               >
-                <Crop size={11} /> Adjust
+                <Crop size={11} />
               </button>
               <button
                 type="button"
                 onClick={() => remove(i)}
-                className="flex items-center gap-1 text-[10px] font-semibold text-white bg-red-500/60 hover:bg-red-500/80 rounded-lg px-2 py-1 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-white bg-red-500/80 rounded py-1 backdrop-blur-md"
               >
-                <X size={11} /> Remove
+                <X size={11} />
               </button>
             </div>
           </div>
         ))}
+
+        {/* Uploading placeholders */}
+        {uploads.map((task) => {
+          const strokeDashoffset = 88 - (88 * task.progress) / 100;
+          return (
+            <div
+              key={task.id}
+              className="relative shrink-0 rounded-xl overflow-hidden shadow-md border border-white/20 bg-black/40 flex flex-col items-center justify-center gap-2"
+              style={{ width: 72, aspectRatio: "3/4" }}
+            >
+              <div className="relative w-8 h-8">
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle cx="16" cy="16" r="14" stroke="rgba(255,255,255,0.1)" strokeWidth="3" fill="none" />
+                  <circle
+                    cx="16"
+                    cy="16"
+                    r="14"
+                    stroke="#7C6FE8"
+                    strokeWidth="3"
+                    fill="none"
+                    strokeDasharray="88"
+                    strokeDashoffset={strokeDashoffset}
+                    className="transition-all duration-200"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-[9px] font-semibold text-white">{task.progress}%</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => task.abortController.abort()}
+                className="text-[9px] font-semibold text-accent-red hover:bg-accent-red/20 px-2 py-0.5 rounded transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          );
+        })}
 
         {/* Add button */}
         {gallery.length < MAX_PHOTOS && (
@@ -777,6 +913,7 @@ function PhotoCropModal({
   // State for pan & zoom
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isUploading, setIsUploading] = useState(false);
   const dragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
 
@@ -802,6 +939,9 @@ function PhotoCropModal({
   // Load image and compute initial zoom to fill 3:4 crop
   useEffect(() => {
     const img = new Image();
+    if (src.startsWith('http')) {
+      img.crossOrigin = "anonymous";
+    }
     img.onload = () => {
       imgRef.current = img;
       const imgRatio = img.naturalWidth / img.naturalHeight;
@@ -813,7 +953,7 @@ function PhotoCropModal({
       setZoom(minZoom);
       setOffset({ x: 0, y: 0 });
     };
-    img.src = src;
+    img.src = src.startsWith('http') ? `${src}?t=${Date.now()}` : src;
   }, [src]);
 
   // Redraw canvas whenever zoom/offset changes
@@ -858,10 +998,20 @@ function PhotoCropModal({
   };
 
   // ── Save ────────────────────────────────────────────────────────────────────
-  const save = () => {
+  const save = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    onSave(canvas.toDataURL("image/webp", 0.88));
+    try {
+      setIsUploading(true);
+      // Create cropped base64, then upload back to supabase
+      const base64 = canvas.toDataURL("image/webp", 0.88);
+      const publicUrl = await uploadImageToSupabase(base64);
+      onSave(publicUrl);
+    } catch (err) {
+      showToast("Failed to upload cropped image");
+      console.error(err);
+      setIsUploading(false);
+    }
   };
 
   return createPortal(
@@ -928,10 +1078,11 @@ function PhotoCropModal({
           <button
             type="button"
             onClick={save}
-            className="flex-1 py-2 text-sm font-semibold text-white rounded-xl transition-all"
+            disabled={isUploading}
+            className="flex-1 py-2 text-sm font-semibold text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: "linear-gradient(135deg,#7C6FE8,#5847C7)" }}
           >
-            Save Crop
+            {isUploading ? "Uploading..." : "Save Crop"}
           </button>
         </div>
       </div>

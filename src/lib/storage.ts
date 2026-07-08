@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, supabaseUrl, supabaseAnonKey } from "./supabase";
 
 export interface Settings {
   shopName: string;
@@ -651,7 +651,8 @@ export async function generatePhoneId(): Promise<string> {
 }
 
 export async function upsertPhone(p: UsedPhone) {
-  await supabase.from('phones').upsert([toSnakeCasePhone(p)], { onConflict: 'id' });
+  const { error } = await supabase.from('phones').upsert([toSnakeCasePhone(p)], { onConflict: 'id' });
+  if (error) console.error("Error saving phone:", error);
   fire();
 }
 
@@ -814,4 +815,88 @@ export async function seedDemoData() {
     ];
     saveMarketPrices(mkt);
   }
+}
+
+// --- Supabase Storage Helpers ---
+function dataURLtoBlob(dataurl: string) {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/webp';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while(n--){
+      u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], {type:mime});
+}
+
+export async function deleteImageFromSupabase(publicUrl: string): Promise<void> {
+  if (!publicUrl.startsWith(supabaseUrl)) return;
+  try {
+    const fileName = publicUrl.split('/').pop();
+    if (!fileName) return;
+    await supabase.storage.from('images').remove([fileName]);
+  } catch (error) {
+    console.error("Error deleting image from Supabase:", error);
+  }
+}
+
+export function uploadImageToSupabase(
+  base64: string,
+  onProgress?: (pct: number) => void,
+  abortSignal?: AbortSignal
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // If it's already a public URL (e.g. they cropped a previously uploaded image), just return it
+    if (base64.startsWith('http')) return resolve(base64);
+
+    try {
+      const blob = dataURLtoBlob(base64);
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
+      const url = `${supabaseUrl}/storage/v1/object/images/${fileName}`;
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.setRequestHeader('Authorization', `Bearer ${supabaseAnonKey}`);
+      xhr.setRequestHeader('apikey', supabaseAnonKey);
+      xhr.setRequestHeader('Content-Type', 'image/webp');
+      // For Supabase to know it's not upserting
+      xhr.setRequestHeader('x-upsert', 'false');
+
+      if (abortSignal) {
+        abortSignal.addEventListener('abort', () => xhr.abort());
+      }
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          onProgress(pct);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const { data: publicUrlData } = supabase.storage
+            .from('images')
+            .getPublicUrl(fileName);
+          resolve(publicUrlData.publicUrl);
+        } else {
+          try {
+            const err = JSON.parse(xhr.responseText);
+            reject(new Error(err.message || err.error || 'Upload failed'));
+          } catch {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.onabort = () => reject(new Error("Upload cancelled"));
+
+      xhr.send(blob);
+    } catch (error) {
+      console.error("Error setting up upload:", error);
+      reject(error);
+    }
+  });
 }
