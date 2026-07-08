@@ -36,18 +36,31 @@ export function BuySellView({ tr }: { tr: (k: any) => string; lang: "en" | "bn" 
     return () => window.removeEventListener("repairshop:change", fetch);
   }, []);
 
-  const listedCount = phones.filter((p) => p.status !== "Sold").length + accs.filter((a) => a.status !== "Discontinued").length;
-  const soldPhones = phones.filter((p) => p.status === "Sold");
-  const soldCount = soldPhones.length;
-  const revenue = soldPhones.reduce((s, p) => s + p.sellingPrice, 0);
-  const profit = soldPhones.reduce((s, p) => s + (p.sellingPrice - p.purchasePrice), 0);
+  const phoneStats = useMemo(() => {
+    const listed = phones.filter((p) => p.status !== "Sold").length;
+    const sold = phones.filter((p) => p.status === "Sold");
+    return [
+      { label: tr("totalListed"), value: listed, Icon: Package },
+      { label: tr("totalSold"), value: sold.length, Icon: ShoppingCart },
+      { label: tr("totalRevenue"), value: bdt(sold.reduce((s, p) => s + p.sellingPrice, 0)), Icon: Coins },
+      { label: tr("totalProfit"), value: bdt(sold.reduce((s, p) => s + (p.sellingPrice - p.purchasePrice), 0)), Icon: TrendingUp },
+    ];
+  }, [phones, tr]);
 
-  const summary = [
-    { label: tr("totalListed"), value: listedCount, Icon: Package },
-    { label: tr("totalSold"), value: soldCount, Icon: ShoppingCart },
-    { label: tr("totalRevenue"), value: bdt(revenue), Icon: Coins },
-    { label: tr("totalProfit"), value: bdt(profit), Icon: TrendingUp },
-  ];
+  const accStats = useMemo(() => {
+    const listed = accs.filter((a) => a.status !== "Discontinued").length;
+    const totalItems = accs.reduce((s, a) => s + (a.stockQuantity || 0), 0);
+    const totalValue = accs.reduce((s, a) => s + ((a.sellingPrice || 0) * (a.stockQuantity || 0)), 0);
+    const lowStock = accs.filter((a) => (a.stockQuantity || 0) < 5).length;
+    return [
+      { label: tr("totalListed") || "Total Listed", value: listed, Icon: Package },
+      { label: "Total Stock", value: totalItems, Icon: ShoppingCart },
+      { label: "Stock Value", value: bdt(totalValue), Icon: Coins },
+      { label: "Low Stock", value: lowStock, Icon: AlertTriangle },
+    ];
+  }, [accs, tr]);
+
+  const summary = sub === "phones" ? phoneStats : accStats;
 
   return (
     <div className="space-y-4">

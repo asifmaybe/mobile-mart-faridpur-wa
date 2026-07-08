@@ -762,59 +762,6 @@ export async function getJustInItems(limit = 6): Promise<JustInItem[]> {
 export async function seedDemoData() {
   if (!isBrowser()) return;
   await initializeSettings();
-
-  const memos = await getMemos();
-  if (memos.length === 0) {
-    const m: Memo = {
-      token: "MEMO-1234",
-      customerName: "Demo Customer",
-      customerPhone: "01700000000",
-      device: "Demo Device",
-      note: "This is a demo memo",
-      date: new Date().toISOString().slice(0, 10),
-      createdAt: new Date().toISOString()
-    };
-    await addMemo(m);
-  }
-
-  const today = new Date();
-  const minusDays = (n: number) => {
-    const d = new Date(today); d.setDate(d.getDate() - n);
-    return d.toISOString();
-  };
-
-  const phones = await getPhones();
-  if (phones.length === 0) {
-    const seedPhones: UsedPhone[] = [
-      { id: "PHN-1042", brand: "Samsung", model: "Galaxy S21", storage: "128GB", ram: "8GB", batteryHealth: 87, condition: "Good", purchasePrice: 18000, sellingPrice: 22000, status: "Listed", photoUrl: "", notes: "Minor scratch on back panel, screen flawless", dateAdded: minusDays(2), galleryUrls: [], shortDescription: "Clean unit, no dents. Screen and digitizer flawless. Original charger included." },
-      { id: "PHN-1043", brand: "Apple", model: "iPhone 11", storage: "64GB", ram: "4GB", batteryHealth: 82, condition: "Excellent", purchasePrice: 26000, sellingPrice: 32000, status: "Listed", photoUrl: "", notes: "Original box and charger included", dateAdded: minusDays(4), galleryUrls: [], shortDescription: "Excellent condition, original box and charger included. Face ID and battery perform reliably." },
-      { id: "PHN-1044", brand: "Xiaomi", model: "Redmi Note 11", storage: "128GB", ram: "6GB", batteryHealth: 91, condition: "Good", purchasePrice: 11000, sellingPrice: 14500, status: "Listed", photoUrl: "", notes: "", dateAdded: minusDays(10), galleryUrls: [], shortDescription: "Smooth daily-use device, battery health 91%. Minor wear on edges." },
-    ];
-    for(const p of seedPhones) {
-      await upsertPhone(p);
-    }
-  }
-
-  const accs = await getAccessories();
-  if (accs.length === 0) {
-    const seedAcc: Accessory[] = [
-      { id: "ACC-2031", name: "20000mAh Power Bank", category: "Power Bank", brand: "Anker", purchasePrice: 1400, sellingPrice: 1900, stockQuantity: 5, photoUrl: "", status: "In Stock", dateAdded: minusDays(3) },
-      { id: "ACC-2032", name: "25W USB-C Fast Charger", category: "Charger", brand: "Samsung", purchasePrice: 700, sellingPrice: 1100, stockQuantity: 12, photoUrl: "", status: "In Stock", dateAdded: minusDays(8) },
-    ];
-    for(const a of seedAcc) {
-      await upsertAccessory(a);
-    }
-  }
-
-  // --- Market Prices (still localStorage) ---
-  if (getMarketPrices().length === 0) {
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
-    const minus = (n: number) => { const d = new Date(today); d.setDate(d.getDate() - n); return iso(d); };
-    const mkt: MarketPriceEntry[] = [
-      { entryId: "MKT-0201", brand: "Samsung", model: "Galaxy A54", partType: "Display", marketLow: 1800, marketHigh: 2400, notes: "OEM ~2200, copy ~1800", lastUpdated: minus(5) },
-    ];
-    saveMarketPrices(mkt);
-  }
 }
 
 // --- Supabase Storage Helpers ---
