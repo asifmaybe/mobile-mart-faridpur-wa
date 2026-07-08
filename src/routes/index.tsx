@@ -11,6 +11,7 @@ import { useI18n } from "../lib/i18n";
 import { CountUp } from "../lib/ui";
 import { getSettings, getAvailablePhones, getAccessories, isJustIn, getCachedSettings, type UsedPhone, type Accessory } from "../lib/storage";
 import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
+import { PhoneCardSkeleton, AccessoryCardSkeleton } from "../components/Skeletons";
 
 import { JustInFeed } from "../components/JustInFeed";
 import { PhoneCard } from "./phones";
@@ -148,18 +149,7 @@ function Home() {
             {loadingPhones ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="glass overflow-hidden flex flex-col" style={{ borderRadius: 22 }}>
-                    <div className="skeleton aspect-[4/3] m-3" style={{ borderRadius: 16 }} />
-                    <div className="p-4 pt-2 flex flex-col gap-3">
-                      <div className="skeleton h-5 w-3/4" />
-                      <div className="skeleton h-4 w-full" />
-                      <div className="skeleton h-7 w-1/2" />
-                      <div className="flex gap-2">
-                        <div className="skeleton h-11 flex-1" />
-                        <div className="skeleton h-11 flex-1" />
-                      </div>
-                    </div>
-                  </div>
+                  <PhoneCardSkeleton key={i} />
                 ))}
               </div>
             ) : featuredPhones.length > 0 ? (
@@ -218,15 +208,7 @@ function Home() {
             {loadingAccs ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="glass overflow-hidden flex flex-col" style={{ borderRadius: 22 }}>
-                    <div className="skeleton aspect-[4/3]" style={{ borderRadius: 0 }} />
-                    <div className="p-4 flex flex-col gap-3">
-                      <div className="skeleton h-5 w-3/4" />
-                      <div className="skeleton h-4 w-1/2" />
-                      <div className="skeleton h-7 w-1/3" />
-                      <div className="skeleton h-11 w-full" />
-                    </div>
-                  </div>
+                  <AccessoryCardSkeleton key={i} />
                 ))}
               </div>
             ) : accessories.length > 0 ? (

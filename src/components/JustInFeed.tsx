@@ -8,6 +8,7 @@ import { PhotoPlaceholder } from "./PhotoPlaceholder";
 import { WhatsAppIcon } from "./icons/WhatsAppIcon";
 import { shopWhatsAppLink, bdt } from "../lib/wa";
 import { PhoneDetailModal } from "./PhoneDetailModal";
+import { JustInCardSkeleton } from "./Skeletons";
 
 function itemTitle(j: JustInItem) {
   return j.type === "phone" ? `${j.item.brand} ${j.item.model}` : j.item.name;
@@ -19,38 +20,6 @@ function itemMsg(j: JustInItem) {
   return j.type === "phone"
     ? `Hi! I'm interested in the ${j.item.brand} ${j.item.model} listed for ${bdt(j.item.sellingPrice)}.`
     : `Hi! I'd like to buy the ${j.item.name} listed for ${bdt(j.item.sellingPrice)}.`;
-}
-
-/** Skeleton placeholder cards shown while data loads */
-function JustInSkeleton() {
-  return (
-    <section className="px-4 mt-14 mb-14">
-      <div className="mx-auto max-w-6xl">
-        <div className="flex items-end justify-between gap-3 mb-5">
-          <div>
-            <div className="skeleton h-8 w-48 mb-2" />
-            <div className="skeleton h-4 w-64" />
-          </div>
-        </div>
-        <div className="flex gap-4 overflow-hidden">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="glass shrink-0 w-[68%] sm:w-[48%] md:w-[32%] lg:w-[24%] overflow-hidden"
-              style={{ borderRadius: 22, opacity: 1 - i * 0.18 }}
-            >
-              <div className="skeleton aspect-[3/4]" style={{ borderRadius: 0 }} />
-              <div className="p-3 space-y-2">
-                <div className="skeleton h-4 w-3/4" />
-                <div className="skeleton h-6 w-1/2" />
-                <div className="skeleton h-11 w-full" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
 }
 
 export function JustInFeed() {
@@ -91,7 +60,25 @@ export function JustInFeed() {
   };
 
   // Show skeleton while loading
-  if (items === null) return <JustInSkeleton />;
+  if (items === null) return (
+    <section className="px-4 mt-14 mb-14">
+      <div className="mx-auto max-w-6xl">
+        {/* Header skeleton */}
+        <div className="flex items-end justify-between gap-3 mb-5">
+          <div className="space-y-2">
+            <div className="skeleton h-8 w-52" />
+            <div className="skeleton h-4 w-72" />
+          </div>
+        </div>
+        {/* Card row skeleton */}
+        <div className="flex gap-4 overflow-hidden">
+          {["68%", "48%", "32%", "24%"].map((w, i) => (
+            <JustInCardSkeleton key={i} wide={i === 0} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
   // Hide section if no items
   if (items.length === 0) return null;
 

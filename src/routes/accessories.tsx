@@ -5,6 +5,7 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PhotoPlaceholder } from "../components/PhotoPlaceholder";
 import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
+import { AccessoryCardSkeleton } from "../components/Skeletons";
 import { useI18n } from "../lib/i18n";
 import {
   ACCESSORY_CATEGORIES, filterAccessories, getAccessories, getSettings, getCachedSettings,
@@ -97,15 +98,7 @@ function AccessoriesPage() {
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="glass overflow-hidden flex flex-col" style={{ borderRadius: 22 }}>
-                    <div className="skeleton aspect-[4/3]" style={{ borderRadius: 0 }} />
-                    <div className="p-4 flex flex-col gap-3">
-                      <div className="skeleton h-5 w-3/4" />
-                      <div className="skeleton h-4 w-1/2" />
-                      <div className="skeleton h-7 w-1/3" />
-                      <div className="skeleton h-11 w-full" />
-                    </div>
-                  </div>
+                  <AccessoryCardSkeleton key={i} />
                 ))}
               </div>
             ) : filtered.length === 0 ? (

@@ -7,6 +7,7 @@ import { Footer } from "../components/Footer";
 import { PhotoPlaceholder } from "../components/PhotoPlaceholder";
 import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
 import { PhoneDetailModal } from "../components/PhoneDetailModal";
+import { PhoneCardSkeleton } from "../components/Skeletons";
 import { useI18n } from "../lib/i18n";
 import {
   filterPhones, getAvailablePhones, isJustIn, getSettings, getCachedSettings,
@@ -125,18 +126,7 @@ function PhonesPage() {
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="glass overflow-hidden flex flex-col" style={{ borderRadius: 22 }}>
-                    <div className="skeleton aspect-[3/4] md:aspect-[4/3] m-3" style={{ borderRadius: 16 }} />
-                    <div className="p-4 pt-2 flex flex-col gap-3">
-                      <div className="skeleton h-5 w-3/4" />
-                      <div className="skeleton h-4 w-full" />
-                      <div className="skeleton h-7 w-1/2" />
-                      <div className="flex gap-2">
-                        <div className="skeleton h-11 flex-1" />
-                        <div className="skeleton h-11 flex-1" />
-                      </div>
-                    </div>
-                  </div>
+                  <PhoneCardSkeleton key={i} />
                 ))}
               </div>
             ) : filtered.length === 0 ? (
