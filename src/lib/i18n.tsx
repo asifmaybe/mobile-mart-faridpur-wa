@@ -18,7 +18,7 @@ export const t: Dict = {
   // hero
   heroTitle: { en: "Premium Mobile Shop — Best Deals.", bn: "প্রিমিয়াম মোবাইল শপ — সেরা ডিল।" },
   heroSub: {
-    en: "Quality-checked used phones, fair exchange value, and genuine accessories — all under one roof.",
+    en: "Quality-checked used phones, fair exchange value, and genuine accessories, all under one roof.",
     bn: "কোয়ালিটি-চেকড ব্যবহৃত ফোন, সঠিক এক্সচেঞ্জ ভ্যালু এবং অরিজিনাল অ্যাকসেসরিজ — সবকিছু এক ছাদের নিচে.",
   },
   browsePhonesCTA: { en: "Browse Phones", bn: "ফোন দেখুন" },
