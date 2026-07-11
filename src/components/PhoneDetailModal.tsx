@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { X, Flame, ChevronLeft, ChevronRight, GitCompareArrows } from "lucide-react";
+import { X, Flame, ChevronLeft, ChevronRight, GitCompareArrows, Link2, Check } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useI18n } from "../lib/i18n";
 import { isJustIn, type UsedPhone } from "../lib/storage";
@@ -41,9 +41,17 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [activeImg, setActiveImg] = useState(0);
-
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => { if (open) setActiveImg(0); }, [open, phone?.id]);
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/phones?phone=${phone?.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   // Esc + focus trap + scroll lock
   useEffect(() => {
@@ -150,7 +158,7 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
               <button
                 onClick={onClose}
                 aria-label={tr("closeDetails")}
-                className="sm:hidden absolute top-[12px] right-[12px] z-[60] w-8 h-8 rounded-full grid place-items-center"
+                className="sm:hidden absolute top-[16px] right-[16px] z-[60] w-8 h-8 rounded-full grid place-items-center"
                 style={{
                   background: "rgba(0,0,0,0.06)",
                   border: "1px solid rgba(0,0,0,0.08)",
@@ -298,6 +306,17 @@ export function PhoneDetailModal({ phone, open, onClose, returnFocusRef }: Props
                       <GitCompareArrows size={16} />
                       <span className="ml-1 hidden xs:inline">{lang === "bn" ? "তুলনা" : "Compare"}</span>
                     </Link>
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      title="Copy link to this product"
+                      aria-label="Copy product link"
+                      className="btn-glass flex-1 !min-h-[42px] justify-center text-sm px-2 transition-all"
+                      style={copied ? { color: "var(--accent-green, #22c55e)" } : undefined}
+                    >
+                      {copied ? <Check size={16} /> : <Link2 size={16} />}
+                      <span className="ml-1 hidden xs:inline">{copied ? "Copied!" : "Copy Link"}</span>
+                    </button>
                     <a
                       href={shopWhatsAppLink(
                         `Hi! I'm interested in the ${phone.brand} ${phone.model} (${phone.storage}/${phone.ram}) listed for ${bdt(phone.sellingPrice)}. Is it still available?`

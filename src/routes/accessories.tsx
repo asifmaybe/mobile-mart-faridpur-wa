@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Headphones, PackageX, Filter as FilterIcon, X } from "lucide-react";
+import { Headphones, PackageX, Filter as FilterIcon, X, Link2, Check } from "lucide-react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PhotoPlaceholder } from "../components/PhotoPlaceholder";
@@ -24,11 +24,16 @@ export const Route = createFileRoute("/accessories")({
       { property: "og:description", content: "Quality phone accessories at fair prices." },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { acc?: string } => ({
+    acc: typeof search.acc === "string" ? search.acc : undefined,
+  }),
   component: AccessoriesPage,
 });
 
 function AccessoriesPage() {
   const { tr, lang } = useI18n();
+  const { acc: accIdParam } = Route.useSearch();
+  const navigate = useNavigate({ from: "/accessories" });
   const [all, setAll] = useState<Accessory[]>([]);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<any>(getCachedSettings);
@@ -62,6 +67,25 @@ function AccessoriesPage() {
   const filtered = useMemo(() => filterAccessories(all, { category: category || undefined }), [all, category]);
   const activeCount = category ? 1 : 0;
   const clearAll = () => setCategory("");
+
+  // Auto-open share link target accessory via highlight scroll (accessories use cards not modal)
+  // We handle this by passing accIdParam down to each card
+  const onCopyLink = (id: string) => {
+    const url = `${window.location.origin}/accessories?acc=${id}`;
+    navigator.clipboard.writeText(url);
+    navigate({ search: (prev) => ({ ...prev, acc: id }), replace: false });
+  };
+
+  useEffect(() => {
+    if (!loading && accIdParam) {
+      setTimeout(() => {
+        const el = document.getElementById(`acc-${accIdParam}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 300); // small delay to ensure cards are rendered
+    }
+  }, [loading, accIdParam]);
 
   return (
     <div className="min-h-screen">
@@ -110,7 +134,7 @@ function AccessoriesPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filtered.map((a) => (
-                  <AccessoryCard key={a.id} acc={a} tr={tr} settings={settings} />
+                  <AccessoryCard key={a.id} acc={a} tr={tr} settings={settings} onCopyLink={onCopyLink} highlightId={accIdParam} />
                 ))}
               </div>
             )}
@@ -139,11 +163,24 @@ function AccessoriesPage() {
   );
 }
 
-export function AccessoryCard({ acc, tr, settings }: { acc: Accessory; tr: (k: any) => string; settings?: any }) {
+export function AccessoryCard({ acc, tr, settings, onCopyLink, highlightId }: { acc: Accessory; tr: (k: any) => string; settings?: any; onCopyLink?: (id: string) => void; highlightId?: string }) {
   const inStock = acc.status === "In Stock";
   const msg = `Hi! I'd like to buy the ${acc.name} (${acc.brand}) listed for ${bdt(acc.sellingPrice)}. Is it available?`;
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    onCopyLink?.(acc.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <article className="glass overflow-hidden flex flex-col">
+    <article
+      id={`acc-${acc.id}`}
+      className={`glass overflow-hidden flex flex-col transition-all duration-300 ${
+        highlightId === acc.id ? "ring-2 ring-accent-purple/60 ring-offset-2" : ""
+      }`}
+    >
       <div className="relative aspect-[4/3] bg-white/30">
         <PhotoPlaceholder url={acc.photoUrl} alt={acc.name} />
         <span className={`absolute top-2 right-2 inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${inStock ? "bg-accent-green/20 text-accent-green border-accent-green/40"
@@ -151,6 +188,23 @@ export function AccessoryCard({ acc, tr, settings }: { acc: Accessory; tr: (k: a
           }`}>
           {inStock ? tr("inStock") : tr("outOfStockLabel")}
         </span>
+        {/* Copy link button on image */}
+        <button
+          type="button"
+          onClick={handleCopy}
+          title="Copy link to this product"
+          aria-label="Copy product link"
+          className="absolute bottom-2 left-2 w-8 h-8 rounded-full grid place-items-center transition-all duration-200"
+          style={{
+            background: copied ? "rgba(34,197,94,0.18)" : "rgba(255,255,255,0.75)",
+            backdropFilter: "blur(8px)",
+            border: copied ? "1px solid rgba(34,197,94,0.50)" : "1px solid rgba(255,255,255,0.60)",
+            color: copied ? "#16a34a" : "#374151",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
+          }}
+        >
+          {copied ? <Check size={14} /> : <Link2 size={14} />}
+        </button>
       </div>
       <div className="p-4 flex flex-col gap-2 flex-1">
         <h3 className="font-bold text-base leading-tight">{acc.name}</h3>

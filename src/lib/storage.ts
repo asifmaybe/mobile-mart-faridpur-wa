@@ -3,7 +3,7 @@ import { supabase, supabaseUrl, supabaseAnonKey } from "./supabase";
 // ===== In-Memory Cache =====
 interface CacheEntry<T> { data: T; ts: number; }
 const _cache = new Map<string, CacheEntry<any>>();
-const CACHE_TTL = 30_000;          // 30 s for phones/accessories
+const CACHE_TTL = 90_000;          // 90 s for phones/accessories (reduced Supabase calls)
 const SETTINGS_TTL = 300_000;     // 5 min for settings
 
 function cacheGet<T>(key: string, ttl = CACHE_TTL): T | null {
@@ -87,7 +87,7 @@ const DEFAULT_SETTINGS: Settings = {
   shopNameBn: "ফরিদপুর মোবাইল মার্ট",
   phone: "+8801318630942",
   whatsapp: "8801318630942",
-  email: "jadu0033@gmail.com", 
+  email: "jadu0033@gmail.com",
   address: "Faridpur New Market, 3rd Floor, Faridpur",
   addressBn: "ফরিদপুর নিউ মার্কেট, ৩য় তলা, ফরিদপুর",
   website: "",
@@ -610,7 +610,7 @@ export interface Accessory {
 export function isJustIn(dateAdded: string): boolean {
   const t = Date.parse(dateAdded);
   if (Number.isNaN(t)) return false;
-  return Date.now() - t <= 7 * 86400000;
+  return Date.now() - t <= 24 * 3600000; // 24 hours
 }
 
 export function recomputeAccessoryStatus(a: Accessory): Accessory {
@@ -625,7 +625,7 @@ function toCamelCasePhone(dbPhone: any): UsedPhone {
     if (typeof dbPhone.imei === 'string' && dbPhone.imei.startsWith('{')) {
       extra = JSON.parse(dbPhone.imei);
     }
-  } catch (e) {}
+  } catch (e) { }
 
   return {
     id: dbPhone.id,
@@ -710,7 +710,7 @@ export async function generatePhoneId(): Promise<string> {
   const phones = await getPhones();
   const existing = new Set(phones.map((p) => p.id));
   let t = "";
-  do { t = "PHN-" + Math.floor(1000 + Math.random() * 9000); } while (existing.has(t));
+  do { t = Math.random().toString(16).slice(2, 8).padStart(6, '0'); } while (existing.has(t));
   return t;
 }
 
@@ -790,7 +790,7 @@ export async function generateAccessoryId(): Promise<string> {
   const accs = await getAccessories();
   const existing = new Set(accs.map((a) => a.id));
   let t = "";
-  do { t = "ACC-" + Math.floor(1000 + Math.random() * 9000); } while (existing.has(t));
+  do { t = Math.random().toString(16).slice(2, 8).padStart(6, '0'); } while (existing.has(t));
   return t;
 }
 
@@ -842,10 +842,10 @@ function dataURLtoBlob(dataurl: string) {
   const bstr = atob(arr[1]);
   let n = bstr.length;
   const u8arr = new Uint8Array(n);
-  while(n--){
-      u8arr[n] = bstr.charCodeAt(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
   }
-  return new Blob([u8arr], {type:mime});
+  return new Blob([u8arr], { type: mime });
 }
 
 export async function deleteImageFromSupabase(publicUrl: string): Promise<void> {

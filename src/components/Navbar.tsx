@@ -95,9 +95,7 @@ export function Navbar() {
           >
             {lang === "en" ? "বাং" : "EN"}
           </button>
-          <Link to="/admin" className="hidden sm:inline-flex glass-pill px-4 py-2 text-xs font-semibold">
-            {tr("adminLogin")}
-          </Link>
+
           <a
             href={`https://wa.me/${whatsapp}`}
             target="_blank" rel="noreferrer"
@@ -138,9 +136,7 @@ export function Navbar() {
             {tr(l.key)}
           </Link>
         ))}
-        <Link to="/admin" className="block px-4 py-3 text-sm font-medium rounded-xl hover:bg-white/5">
-          {tr("adminLogin")}
-        </Link>
+
       </div>
     </header>
   );

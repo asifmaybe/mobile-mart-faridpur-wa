@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PhonesRouteImport } from './routes/phones'
 import { Route as CompareRouteImport } from './routes/compare'
-import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminfmmRouteImport } from './routes/adminfmm'
 import { Route as AccessoriesRouteImport } from './routes/accessories'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -25,9 +25,9 @@ const CompareRoute = CompareRouteImport.update({
   path: '/compare',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AdminfmmRoute = AdminfmmRouteImport.update({
+  id: '/adminfmm',
+  path: '/adminfmm',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccessoriesRoute = AccessoriesRouteImport.update({
@@ -44,14 +44,14 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accessories': typeof AccessoriesRoute
-  '/admin': typeof AdminRoute
+  '/adminfmm': typeof AdminfmmRoute
   '/compare': typeof CompareRoute
   '/phones': typeof PhonesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accessories': typeof AccessoriesRoute
-  '/admin': typeof AdminRoute
+  '/adminfmm': typeof AdminfmmRoute
   '/compare': typeof CompareRoute
   '/phones': typeof PhonesRoute
 }
@@ -59,22 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/accessories': typeof AccessoriesRoute
-  '/admin': typeof AdminRoute
+  '/adminfmm': typeof AdminfmmRoute
   '/compare': typeof CompareRoute
   '/phones': typeof PhonesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/accessories' | '/admin' | '/compare' | '/phones'
+  fullPaths: '/' | '/accessories' | '/adminfmm' | '/compare' | '/phones'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/accessories' | '/admin' | '/compare' | '/phones'
-  id: '__root__' | '/' | '/accessories' | '/admin' | '/compare' | '/phones'
+  to: '/' | '/accessories' | '/adminfmm' | '/compare' | '/phones'
+  id: '__root__' | '/' | '/accessories' | '/adminfmm' | '/compare' | '/phones'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccessoriesRoute: typeof AccessoriesRoute
-  AdminRoute: typeof AdminRoute
+  AdminfmmRoute: typeof AdminfmmRoute
   CompareRoute: typeof CompareRoute
   PhonesRoute: typeof PhonesRoute
 }
@@ -95,11 +95,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompareRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+    '/adminfmm': {
+      id: '/adminfmm'
+      path: '/adminfmm'
+      fullPath: '/adminfmm'
+      preLoaderRoute: typeof AdminfmmRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accessories': {
@@ -122,7 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccessoriesRoute: AccessoriesRoute,
-  AdminRoute: AdminRoute,
+  AdminfmmRoute: AdminfmmRoute,
   CompareRoute: CompareRoute,
   PhonesRoute: PhonesRoute,
 }

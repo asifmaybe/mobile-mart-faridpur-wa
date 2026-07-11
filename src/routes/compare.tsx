@@ -9,7 +9,7 @@ import { getAvailablePhones, type UsedPhone, type PhoneCondition, getSettings } 
 import { shopWhatsAppLink, bdt } from "../lib/wa";
 
 export const Route = createFileRoute("/compare")({
-  validateSearch: (search: Record<string, unknown>) => {
+  validateSearch: (search: Record<string, unknown>): { id1?: string } => {
     return {
       id1: (search.id1 as string) || "",
     };

@@ -44,6 +44,11 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+// Supabase URL for resource hints
+const SUPABASE_HOST = import.meta.env.VITE_SUPABASE_URL
+  ? new URL(import.meta.env.VITE_SUPABASE_URL).origin
+  : "";
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
@@ -59,12 +64,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      // Preconnect to font origins
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      { rel: "dns-prefetch", href: "https://fonts.gstatic.com" },
+      // Non-render-blocking font load — use media trick so it doesn't block paint
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=optional",
+        media: "print",
+        // @ts-ignore — onload swaps to 'all' once font CSS is fetched
+        onload: "this.media='all'",
       },
+      // Preconnect to Supabase for faster first DB query
+      ...(SUPABASE_HOST ? [
+        { rel: "preconnect", href: SUPABASE_HOST },
+        { rel: "dns-prefetch", href: SUPABASE_HOST },
+      ] : []),
     ],
   }),
   shellComponent: RootShell,

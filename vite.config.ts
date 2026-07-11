@@ -26,7 +26,35 @@ export default defineConfig({
     ],
   },
   optimizeDeps: {
-    include: ["react", "react-dom", "react-dom/client", "react/jsx-runtime", "react/jsx-dev-runtime"],
+    include: [
+      "react",
+      "react-dom",
+      "react-dom/client",
+      "react/jsx-runtime",
+      "react/jsx-dev-runtime",
+      "lucide-react",
+    ],
+  },
+  build: {
+    target: "es2020",
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // Heavy animation library — loaded only by pages that use it
+          if (id.includes("framer-motion")) return "framer-motion";
+          // Supabase client — separate from app code
+          if (id.includes("@supabase")) return "supabase";
+          // Radix UI primitives — separate long-lived cache chunk
+          if (id.includes("@radix-ui")) return "radix";
+          // React ecosystem core
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) return "react-vendor";
+          // TanStack libraries
+          if (id.includes("@tanstack")) return "tanstack";
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
   },
   server: {
     host: "::",

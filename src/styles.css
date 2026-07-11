@@ -71,7 +71,7 @@ body::before {
     radial-gradient(circle at 20% 65%, rgba(255, 243, 191, 0.22) 0%, transparent 45%);
   animation: drift 32s ease-in-out infinite alternate;
   pointer-events: none;
-  filter: blur(20px);
+  filter: blur(12px);  /* reduced from 20px — much cheaper on mobile GPU */
   will-change: transform;  /* GPU-composite this layer */
 }
 
@@ -182,6 +182,18 @@ body::before {
 .btn-primary:hover, .btn-glass:hover, .btn-danger:hover { transform: translateY(-2px); filter: brightness(1.05); }
 .btn-primary:active, .btn-glass:active, .btn-danger:active { transform: scale(0.97); }
 
+/* Card hover — replaces framer-motion whileHover for lighter runtime */
+.card-hover {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+  will-change: transform;
+}
+@media (hover: hover) {
+  .card-hover:hover { transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-hover { transition: none; }
+}
+
 @utility glass-input {
   background: rgba(255, 255, 255, 0.75);
   border: 1px solid rgba(31, 31, 61, 0.14);
@@ -274,8 +286,6 @@ html[lang="bn"] body { line-height: 1.7; }
 
 .bn { font-family: var(--font-bn); }
 
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { scrollbar-width: none; }
 
 .just-in-mask {
   /* Fade-edge mask — only on larger screens where there's overflow to hint */
@@ -315,7 +325,7 @@ html[lang="bn"] body { line-height: 1.7; }
 /* Sections that are well below the fold can skip rendering until near viewport */
 .lazy-section {
   content-visibility: auto;
-  contain-intrinsic-size: 0 400px;
+  contain-intrinsic-size: 0 500px;  /* raised from 400px to reduce relayout */
 }
 
 @media print {

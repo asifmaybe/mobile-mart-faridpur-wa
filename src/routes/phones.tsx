@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Smartphone, PackageX, Flame, Filter as FilterIcon, X, Eye } from "lucide-react";
-import { motion, useReducedMotion } from "framer-motion";
+
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { PhotoPlaceholder } from "../components/PhotoPlaceholder";
@@ -25,6 +25,9 @@ export const Route = createFileRoute("/phones")({
       { property: "og:description", content: "Quality-checked used phones, ready to use." },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { phone?: string } => ({
+    phone: typeof search.phone === "string" ? search.phone : undefined,
+  }),
   component: PhonesPage,
 });
 
@@ -32,6 +35,8 @@ const CONDITIONS: PhoneCondition[] = ["Excellent", "Good", "Fair"];
 
 function PhonesPage() {
   const { tr, lang } = useI18n();
+  const { phone: phoneIdParam } = Route.useSearch();
+  const navigate = useNavigate({ from: "/phones" });
   const [all, setAll] = useState<UsedPhone[]>([]);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<any>(getCachedSettings);
@@ -77,9 +82,23 @@ function PhonesPage() {
 
   const [detail, setDetail] = useState<UsedPhone | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+
+  // Auto-open modal when ?phone=ID is in URL
+  useEffect(() => {
+    if (!phoneIdParam || loading || all.length === 0) return;
+    const found = all.find((p) => p.id === phoneIdParam);
+    if (found) setDetail(found);
+  }, [phoneIdParam, all, loading]);
+
   const openDetail = (p: UsedPhone, trigger: HTMLElement | null) => {
     triggerRef.current = trigger;
     setDetail(p);
+    navigate({ search: (prev) => ({ ...prev, phone: p.id }), replace: false });
+  };
+
+  const closeDetail = () => {
+    setDetail(null);
+    navigate({ search: (prev) => { const s = { ...prev }; delete (s as any).phone; return s; }, replace: true });
   };
 
   return (
@@ -149,7 +168,7 @@ function PhonesPage() {
       <PhoneDetailModal
         phone={detail}
         open={!!detail}
-        onClose={() => setDetail(null)}
+        onClose={closeDetail}
         returnFocusRef={triggerRef}
       />
 
@@ -203,16 +222,10 @@ export function PhoneCard({
 }) {
   const justIn = isJustIn(phone.dateAdded);
   const msg = `Hi! I'm interested in the ${phone.brand} ${phone.model} (${phone.storage}/${phone.ram}) listed for ${bdt(phone.sellingPrice)}. Is it still available?`;
-  const reduceMotion = useReducedMotion();
   return (
-    <motion.article
-      className="glass overflow-hidden flex flex-col"
+    <article
+      className="glass overflow-hidden flex flex-col card-hover"
       style={{ borderRadius: 22 }}
-      initial={reduceMotion ? false : { opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ type: "spring", stiffness: 400, damping: 32 }}
-      whileHover={reduceMotion ? {} : { y: -3, transition: { type: "spring", stiffness: 500, damping: 30 } }}
     >
       <div className="relative aspect-[3/4] md:aspect-[4/3] bg-white/30 rounded-2xl overflow-hidden m-3">
         <PhotoPlaceholder url={phone.photoUrl} alt={`${phone.brand} ${phone.model}`} />
@@ -256,7 +269,7 @@ export function PhoneCard({
           </button>
         </div>
       </div>
-    </motion.article>
+    </article>
   );
 }
 
@@ -275,3 +288,4 @@ export function EmptyState({
     </div>
   );
 }
+

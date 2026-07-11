@@ -18,7 +18,7 @@ import { showToast, Modal } from "../lib/ui";
 import { emptyItem, openReceiptPrint, buildWhatsAppText, ReceiptItemsList, ReceiptSummaryCard } from "../components/admin/ReceiptItemsPanel";
 import { BuySellView } from "../components/admin/BuySellView";
 
-export const Route = createFileRoute("/admin")({
+export const Route = createFileRoute("/adminfmm")({
   head: () => ({ meta: [{ title: "Admin | Faridpur Mobile Mart" }] }),
   component: AdminPage,
 });

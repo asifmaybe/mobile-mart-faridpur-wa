@@ -365,14 +365,14 @@ function Home() {
                     <div className="text-sm mt-1">{settings.hours}</div>
                   </div>
                 </div>
-                <a href={`https://maps.google.com/?q=${encodeURIComponent(settings.address)}`} target="_blank" rel="noreferrer" className="btn-primary w-full">
+                <a href={`https://maps.app.goo.gl/Qr6Uup8pb4jY25L48`} target="_blank" rel="noreferrer" className="btn-primary w-full">
                   {lang === "bn" ? "ডিরেকশন নিন" : "Get Directions"}
                 </a>
               </div>
               <div className="glass overflow-hidden min-h-[280px]">
                 <iframe
                   title="Map"
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(settings.address)}&output=embed`}
+                  src={`https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3656.089021495051!2d89.8307872!3d23.6011401!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39fe3b762f9c9b77%3A0x78dd88cfa6e132bb!2sFaridpur%20Mobile%20Mart!5e0!3m2!1sen!2sin!4v1783791333775!5m2!1sen!2sin`}
                   className="w-full h-full min-h-[280px] border-0"
                   loading="lazy"
                 />

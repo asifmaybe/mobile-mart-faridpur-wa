@@ -42,7 +42,6 @@ export function Footer() {
               <li><Link to="/" className="hover:text-text-primary">{tr("home")}</Link></li>
               <li><Link to="/phones" className="hover:text-text-primary">{tr("phones")}</Link></li>
               <li><Link to="/accessories" className="hover:text-text-primary">{tr("accessories")}</Link></li>
-              <li><Link to="/admin" className="hover:text-text-primary">{tr("adminLogin")}</Link></li>
             </ul>
           </div>
           <div>

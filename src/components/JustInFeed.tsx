@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Flame, ChevronLeft, ChevronRight, ArrowRight, Eye } from "lucide-react";
-import { motion, useReducedMotion } from "framer-motion";
+
 import { useI18n } from "../lib/i18n";
 import { getJustInItems, type JustInItem, type UsedPhone, getSettings, getCachedSettings } from "../lib/storage";
 import { PhotoPlaceholder } from "./PhotoPlaceholder";
@@ -26,7 +26,6 @@ export function JustInFeed() {
   const { tr, lang } = useI18n();
   const [items, setItems] = useState<JustInItem[] | null>(null); // null = loading
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = useReducedMotion();
   const [detail, setDetail] = useState<UsedPhone | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
 
@@ -123,13 +122,10 @@ export function JustInFeed() {
                 const isPhone = j.type === "phone";
                 return (
                   // layoutId removed — it triggers costly FLIP on every list re-render
-                  <motion.article
+                  <article
                     key={`${j.type}-${j.item.id}`}
-                    className="glass shrink-0 w-[68%] sm:w-[48%] md:w-[32%] lg:w-[24%] snap-start overflow-hidden flex flex-col"
+                    className="glass shrink-0 w-[68%] sm:w-[48%] md:w-[32%] lg:w-[24%] snap-start overflow-hidden flex flex-col card-hover fade-up"
                     style={{ borderRadius: 22 }}
-                    initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   >
                     <div className="aspect-[3/4] bg-white/30 relative">
                       <PhotoPlaceholder url={j.item.photoUrl} alt={itemTitle(j)} />
@@ -170,7 +166,7 @@ export function JustInFeed() {
                         </a>
                       )}
                     </div>
-                  </motion.article>
+                  </article>
                 );
               })}
 
