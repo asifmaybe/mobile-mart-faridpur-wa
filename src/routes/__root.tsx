@@ -63,6 +63,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary" },
     ],
     links: [
+      { rel: "shortcut icon", href: "/logo.png", type: "image/png" },
       { rel: "stylesheet", href: appCss },
       // Preconnect to font origins
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
