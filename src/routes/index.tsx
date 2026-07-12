@@ -111,7 +111,7 @@ function Home() {
               {tr("heroEyebrow")}
             </div>
             {lang === "bn" ? (
-              <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold leading-[1.05] fade-up bn">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-[1.2] fade-up bn">
                 <>ফোন কিনুন, বিক্রি করুন ও এক্সচেঞ্জ করুন।<br /><span style={{ background: "linear-gradient(135deg,#5847C7,#7C6FE8,#5BB890)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>বিশ্বস্ত ও ঝামেলাহীন।</span></>
               </h1>
             ) : (
