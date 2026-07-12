@@ -30,8 +30,6 @@ export interface Settings {
   addressBn: string;
   website: string;
   hours: string;
-  adminUsername: string;
-  adminPassword: string;
 }
 
 export type PartCategory =
@@ -92,8 +90,6 @@ const DEFAULT_SETTINGS: Settings = {
   addressBn: "ফরিদপুর নিউ মার্কেট, ৩য় তলা, ফরিদপুর",
   website: "",
   hours: "Sat – Thu 10:00 AM – 10:00 PM · Fri Closed",
-  adminUsername: "admin",
-  adminPassword: "repair2025",
 };
 
 const KEYS = {
@@ -271,8 +267,6 @@ function toCamelCaseSettings(dbSet: any): Settings {
     addressBn: dbSet.address_bn,
     website: dbSet.website,
     hours: dbSet.hours,
-    adminUsername: dbSet.admin_username,
-    adminPassword: dbSet.admin_password,
   };
 }
 
@@ -287,8 +281,6 @@ function toSnakeCaseSettings(s: Settings): any {
     address_bn: s.addressBn,
     website: s.website,
     hours: s.hours,
-    admin_username: s.adminUsername,
-    admin_password: s.adminPassword,
   };
 }
 
@@ -340,14 +332,33 @@ export async function initializeSettings() {
 
 
 // ===== Auth =====
-export function isAuthed(): boolean {
-  if (!isBrowser()) return false;
-  return sessionStorage.getItem(KEYS.auth) === "1";
+export async function signIn(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data;
 }
-export function setAuthed(v: boolean) {
-  if (!isBrowser()) return;
-  if (v) sessionStorage.setItem(KEYS.auth, "1");
-  else sessionStorage.removeItem(KEYS.auth);
+
+export async function signOut() {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+export async function resetPassword(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) throw error;
+}
+
+export function onAuthStateChange(callback: (session: any) => void) {
+  const { data } = supabase.auth.onAuthStateChange((event, session) => {
+    callback(session);
+  });
+  return data.subscription;
+}
+
+export async function getSession() {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  return data.session;
 }
 
 // ===== Inventory =====

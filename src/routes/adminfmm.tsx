@@ -2,15 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, Plus, ClipboardList, Settings as SettingsIcon,
-  LogOut, Menu, Lock, Printer, ArrowRight, Trash2,
+  LogOut, Menu, X, Lock, Printer, ArrowRight, Trash2,
   Package, TrendingUp, Receipt as ReceiptIcon, ShoppingCart,
   type LucideIcon,
 } from "lucide-react";
 import { WhatsAppIcon } from "../components/icons/WhatsAppIcon";
 import { useI18n } from "../lib/i18n";
 import {
-  addMemo, addReceipt, calculateReceiptTotals, getMemos, getSettings, getCachedSettings, saveSettings, isAuthed,
-  generateReceiptNo, seedDemoData, setAuthed, getPhones, getAccessories,
+  addMemo, addReceipt, calculateReceiptTotals, getMemos, getSettings, getCachedSettings, saveSettings,
+  signIn, signOut, getSession, resetPassword, onAuthStateChange,
+  generateReceiptNo, seedDemoData, getPhones, getAccessories,
   type Memo, type Receipt, type ReceiptItem, updateMemo, deleteMemo, generateToken
 } from "../lib/storage";
 import { showToast, Modal } from "../lib/ui";
@@ -32,57 +33,54 @@ function AdminPage() {
 
   useEffect(() => {
     seedDemoData();
-    setAuthedState(isAuthed());
-    setHydrated(true);
+    
+    getSession().then((session) => {
+      setAuthedState(!!session);
+      setHydrated(true);
+    });
+
+    const unsubscribe = onAuthStateChange((session) => {
+      setAuthedState(!!session);
+    });
+
+    return () => {
+      if (unsubscribe && typeof unsubscribe.unsubscribe === 'function') {
+        unsubscribe.unsubscribe();
+      }
+    };
   }, []);
 
   if (!hydrated) return null;
-  if (!authed) return <LoginScreen onLogin={() => setAuthedState(true)} />;
-  return <AdminShell onLogout={() => { setAuthed(false); setAuthedState(false); }} tr={tr} lang={lang} />;
+  if (!authed) return <LoginScreen onLogin={() => {}} />;
+  return <AdminShell onLogout={() => { signOut(); }} tr={tr} lang={lang} />;
 }
 
 
-// The recovery code that unlocks password reset (share this only with the shop owner)
-const RECOVERY_CODE = "MART-RESET-2025";
-
 function ForgotPasswordModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [step, setStep] = useState<"code" | "newpass">("code");
-  const [code, setCode] = useState("");
-  const [codeErr, setCodeErr] = useState(false);
-  const [newPass, setNewPass] = useState("");
-  const [confirmPass, setConfirmPass] = useState("");
-  const [passErr, setPassErr] = useState("");
+  const [email, setEmail] = useState("");
+  const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
 
-  // Reset internal state when modal closes
   const handleClose = () => {
-    setStep("code"); setCode(""); setCodeErr(false);
-    setNewPass(""); setConfirmPass(""); setPassErr("");
+    setEmail(""); setErr("");
     setDone(false); setSaving(false);
     onClose();
   };
 
-  const verifyCode = (e: React.FormEvent) => {
+  const sendResetEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (code.trim() === RECOVERY_CODE) {
-      setCodeErr(false);
-      setStep("newpass");
-    } else {
-      setCodeErr(true);
-      setTimeout(() => setCodeErr(false), 600);
-    }
-  };
-
-  const saveNewPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPass.length < 6) { setPassErr("Password must be at least 6 characters."); return; }
-    if (newPass !== confirmPass) { setPassErr("Passwords do not match."); return; }
+    if (!email) { setErr("Please enter your email."); return; }
     setSaving(true);
-    const s = await getSettings();
-    await saveSettings({ ...s, adminPassword: newPass });
-    setSaving(false);
-    setDone(true);
+    setErr("");
+    try {
+      await resetPassword(email);
+      setDone(true);
+    } catch (error: any) {
+      setErr(error?.message || "Failed to send reset email.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -90,63 +88,32 @@ function ForgotPasswordModal({ open, onClose }: { open: boolean; onClose: () => 
       {done ? (
         <div className="text-center py-4 space-y-4">
           <div className="w-14 h-14 rounded-full bg-accent-green/15 grid place-items-center mx-auto">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5BB890" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5BB890" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           </div>
-          <p className="font-semibold text-text-primary">Password updated!</p>
-          <p className="text-sm text-text-secondary">You can now log in with your new password.</p>
+          <p className="font-semibold text-text-primary">Email Sent!</p>
+          <p className="text-sm text-text-secondary">Check your email for the password reset link.</p>
           <button className="btn-primary w-full" onClick={handleClose}>Back to Login</button>
         </div>
-      ) : step === "code" ? (
-        <form onSubmit={verifyCode} className={`space-y-4 ${codeErr ? "shake" : ""}`}>
+      ) : (
+        <form onSubmit={sendResetEmail} className="space-y-4">
+          <p className="text-sm text-text-secondary">Enter your admin email address to receive a password reset link.</p>
           <div>
-            <label className="label-caps mb-1.5 block">Recovery Code</label>
+            <label className="label-caps mb-1.5 block">Email Address</label>
             <input
               className="glass-input"
-              type="password"
-              placeholder="Enter recovery code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
+              type="email"
+              placeholder="admin@example.com"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setErr(""); }}
               autoFocus
-              autoComplete="off"
+              autoComplete="email"
             />
-            {codeErr && <p className="text-accent-red text-xs mt-1.5">Incorrect recovery code.</p>}
           </div>
+          {err && <p className="text-accent-red text-xs bg-red-50 p-2 rounded-lg">{err}</p>}
           <div className="flex gap-2 pt-1">
             <button type="button" className="btn-glass flex-1" onClick={handleClose}>Cancel</button>
-            <button type="submit" className="btn-primary flex-1">Verify</button>
-          </div>
-        </form>
-      ) : (
-        <form onSubmit={saveNewPassword} className="space-y-4">
-          <p className="text-sm text-text-secondary">Recovery code verified. Set your new password below.</p>
-          <div>
-            <label className="label-caps mb-1.5 block">New Password</label>
-            <input
-              className="glass-input"
-              type="password"
-              placeholder="Min. 6 characters"
-              value={newPass}
-              onChange={(e) => { setNewPass(e.target.value); setPassErr(""); }}
-              autoFocus
-              autoComplete="new-password"
-            />
-          </div>
-          <div>
-            <label className="label-caps mb-1.5 block">Confirm New Password</label>
-            <input
-              className="glass-input"
-              type="password"
-              placeholder="Repeat new password"
-              value={confirmPass}
-              onChange={(e) => { setConfirmPass(e.target.value); setPassErr(""); }}
-              autoComplete="new-password"
-            />
-          </div>
-          {passErr && <p className="text-accent-red text-xs">{passErr}</p>}
-          <div className="flex gap-2 pt-1">
-            <button type="button" className="btn-glass flex-1" onClick={() => setStep("code")}>Back</button>
             <button type="submit" className="btn-primary flex-1" disabled={saving}>
-              {saving ? "Saving…" : "Save Password"}
+              {saving ? "Sending…" : "Send Email"}
             </button>
           </div>
         </form>
@@ -157,19 +124,27 @@ function ForgotPasswordModal({ open, onClose }: { open: boolean; onClose: () => 
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const { tr, lang } = useI18n();
+  const [email, setEmail] = useState("");
   const [p, setP] = useState("");
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
   const [showReset, setShowReset] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const s = await getSettings();
-    if (p === s.adminPassword) {
-      setAuthed(true);
-      onLogin();
-    } else {
-      setErr(true);
-      setTimeout(() => setErr(false), 500);
+    if (!email || !p) {
+      setErr("Please fill all fields");
+      return;
+    }
+    setLoading(true);
+    setErr("");
+    try {
+      await signIn(email, p);
+      onLogin(); 
+    } catch (error: any) {
+      setErr(error?.message || "Invalid credentials");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -185,12 +160,15 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         </div>
         <div className="space-y-3">
           <div>
-            <label className="label-caps mb-1.5 block">{tr("username")}</label>
+            <label className="label-caps mb-1.5 block">Email</label>
             <input
-              className="glass-input opacity-70 cursor-not-allowed"
-              value="admin"
-              readOnly
+              className="glass-input"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               autoComplete="username"
+              placeholder="admin@example.com"
+              autoFocus
             />
           </div>
           <div>
@@ -201,12 +179,13 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               value={p}
               onChange={(e) => setP(e.target.value)}
               autoComplete="current-password"
-              autoFocus
             />
           </div>
         </div>
-        {err && <p className="text-accent-red text-sm mt-3 text-center">{tr("invalidCreds")}</p>}
-        <button type="submit" className="btn-primary w-full mt-5">{tr("login")} <ArrowRight size={16} /></button>
+        {err && <p className="text-accent-red text-sm mt-3 text-center bg-red-50 p-2 rounded-lg">{err}</p>}
+        <button type="submit" className="btn-primary w-full mt-5" disabled={loading}>
+          {loading ? "Logging in..." : <>{tr("login")} <ArrowRight size={16} /></>}
+        </button>
         <button
           type="button"
           className="block w-full text-center text-xs text-accent-blue mt-3 hover:underline"
@@ -227,10 +206,10 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
   const [navOpen, setNavOpen] = useState(false);
 
   const TABS: { id: Tab; Icon: LucideIcon; label: string }[] = [
-    { id: "dashboard",    Icon: LayoutDashboard, label: tr("dashboard") },
-    { id: "new",          Icon: Plus,            label: tr("newMemo") },
-    { id: "memos",        Icon: ClipboardList,   label: tr("allMemos") },
-    { id: "buysell",      Icon: ShoppingCart,    label: tr("inventoryTitle") },
+    { id: "dashboard", Icon: LayoutDashboard, label: tr("dashboard") },
+    { id: "new", Icon: Plus, label: tr("newMemo") },
+    { id: "memos", Icon: ClipboardList, label: tr("allMemos") },
+    { id: "buysell", Icon: ShoppingCart, label: tr("inventoryTitle") },
   ];
 
   const currentLabel = TABS.find((t) => t.id === tab)?.label ?? "";
@@ -238,20 +217,49 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
   return (
     <div className="min-h-screen">
       <div className="flex">
+        {/* Mobile overlay backdrop */}
+        {navOpen && (
+          <div
+            className="md:hidden fixed inset-0 bg-black/40 z-20"
+            onClick={() => setNavOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <aside className={`${navOpen ? "block" : "hidden"} md:block fixed md:sticky inset-x-0 md:inset-x-auto top-0 md:top-0 md:h-screen z-30 md:w-60 p-4`}>
+        <aside
+          className={`
+            fixed top-4 left-4 z-30 p-0 w-64
+            transition-transform duration-300 ease-in-out
+            md:static md:h-screen md:w-60 md:translate-x-0 md:block md:p-4 md:top-0 md:left-0
+            ${navOpen ? "translate-x-0" : "-translate-x-[110%] md:translate-x-0"}
+          `}
+        >
           <nav className="glass p-3 space-y-1">
-            {TABS.map((t) => (
+            {/* Close button — mobile only */}
+            <div className="flex items-center justify-between mb-2 md:hidden">
+              <span className="text-sm font-bold text-text-primary pl-1">Menu</span>
               <button
-                key={t.id}
-                onClick={() => { setTab(t.id); setNavOpen(false); }}
-                className={`w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition ${
-                  tab === t.id ? "bg-white/60 text-text-primary" : "text-text-secondary hover:bg-white/30"
-                }`}
+                className="glass-pill w-9 h-9 grid place-items-center"
+                onClick={() => setNavOpen(false)}
+                aria-label="Close menu"
               >
-                <t.Icon size={18} /> {t.label}
+                <X size={16} />
               </button>
-            ))}
+            </div>
+
+            <div className="space-y-1">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => { setTab(t.id); setNavOpen(false); }}
+                  className={`w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition ${tab === t.id ? "bg-white/60 text-text-primary" : "text-text-secondary hover:bg-white/30"
+                    }`}
+                >
+                  <t.Icon size={18} /> {t.label}
+                </button>
+              ))}
+            </div>
+
             <button
               onClick={onLogout}
               className="w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition text-accent-red hover:bg-white/30"
@@ -264,8 +272,12 @@ function AdminShell({ onLogout, tr, lang }: { onLogout: () => void; tr: (k: any)
         <main className="flex-1 p-4 md:p-6 min-w-0">
           <div className="md:hidden flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold">{currentLabel}</h1>
-            <button className="glass-pill w-10 h-10 grid place-items-center" onClick={() => setNavOpen((o) => !o)} aria-label="Menu">
-              <Menu size={16} />
+            <button
+              className="glass-pill w-10 h-10 grid place-items-center"
+              onClick={() => setNavOpen((o) => !o)}
+              aria-label={navOpen ? "Close menu" : "Open menu"}
+            >
+              {navOpen ? <X size={16} /> : <Menu size={16} />}
             </button>
           </div>
 
@@ -293,7 +305,7 @@ function useMemosState() {
 function Dashboard({ tr, go }: { tr: (k: any) => string; lang: "en" | "bn"; go: (t: Tab) => void }) {
   const memos = useMemosState();
   const today = new Date().toISOString().slice(0, 10);
-  
+
   const [phonesAvailable, setPhonesAvailable] = useState(0);
   const [phonesSold, setPhonesSold] = useState(0);
   const [lowStockAcc, setLowStockAcc] = useState(0);
