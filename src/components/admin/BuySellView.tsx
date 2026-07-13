@@ -1027,7 +1027,7 @@ function PhotoCropModal({
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     setZoom((z) => {
-      const newZ = Math.max(minZoomRef.current, Math.min(10, z * (e.deltaY < 0 ? 1.08 : 0.93)));
+      const newZ = Math.max(minZoomRef.current, Math.min(2, z * (e.deltaY < 0 ? 1.08 : 0.93)));
       // Re-clamp offset for the new zoom level
       setOffset((o) => clampOffset(newZ, o.x, o.y));
       return newZ;
@@ -1043,6 +1043,10 @@ function PhotoCropModal({
       // Create cropped base64, then upload back to supabase
       const base64 = canvas.toDataURL("image/webp", 0.88);
       const publicUrl = await uploadImageToSupabase(base64);
+      // Delete the original image from storage so we don't accumulate duplicates
+      if (src.startsWith('http')) {
+        await deleteImageFromSupabase(src);
+      }
       onSave(publicUrl);
     } catch (err) {
       showToast("Failed to upload cropped image");
@@ -1094,7 +1098,7 @@ function PhotoCropModal({
           <input
             type="range"
             min={minZoomRef.current}
-            max={10}
+            max={2}
             step={0.001}
             value={zoom}
             onChange={(e) => {

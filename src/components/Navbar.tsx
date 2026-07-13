@@ -117,10 +117,13 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile menu — CSS transform instead of mount/unmount to avoid layout thrash */}
+      {/* Mobile menu — solid background to avoid broken nested backdrop-filter on mobile */}
       <div
-        className="lg:hidden mx-4 mt-2 glass p-2 overflow-hidden"
+        className="lg:hidden mx-4 mt-2 rounded-2xl p-2 overflow-hidden"
         style={{
+          background: "rgba(255, 255, 255, 0.96)",
+          border: "1px solid rgba(255,255,255,0.7)",
+          boxShadow: "0 8px 32px rgba(30,28,70,0.13)",
           maxHeight: open ? "320px" : "0px",
           opacity: open ? 1 : 0,
           paddingTop: open ? undefined : 0,
@@ -132,7 +135,7 @@ export function Navbar() {
         aria-hidden={!open}
       >
         {links.map((l) => (
-          <Link key={l.to} to={l.to} className="block px-4 py-3 text-sm font-medium rounded-xl hover:bg-white/5">
+          <Link key={l.to} to={l.to} className="block px-4 py-3 text-sm font-medium rounded-xl hover:bg-black/5 text-gray-800">
             {tr(l.key)}
           </Link>
         ))}
