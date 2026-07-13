@@ -217,7 +217,7 @@ function PhonesAdmin({ tr, phones }: { tr: (k: any) => string; phones: UsedPhone
             <p className="text-sm">{confirm.brand} {confirm.model} ({confirm.id})</p>
             <div className="flex gap-2">
               <button onClick={() => setConfirm(null)} className="btn-glass flex-1">{tr("cancel")}</button>
-              <button onClick={() => { deletePhone(confirm.id); setConfirm(null); }} className="btn-primary flex-1 !bg-accent-red">{tr("delete")}</button>
+              <button onClick={() => { deletePhone(confirm); setConfirm(null); }} className="btn-primary flex-1 !bg-accent-red">{tr("delete")}</button>
             </div>
           </div>
         )}
@@ -260,7 +260,7 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
 
   const gallery = p.galleryUrls ?? [];
   const setGallery = (next: string[]) => set("galleryUrls", next);
-  const [cropTarget, setCropTarget] = useState<{ index: number; src: string } | null>(null);
+  const [cropTarget, setCropTarget] = useState<{ index: number; src: string; prefix: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const submit = (e: React.FormEvent) => {
@@ -356,13 +356,15 @@ function PhoneForm({ tr, initial, onClose, onSave }: {
           <MultiPhotoUploader
             gallery={gallery}
             onGalleryChange={setGallery}
-            onCropRequest={(index, src) => setCropTarget({ index, src })}
+            onCropRequest={(index, src) => setCropTarget({ index, src, prefix: `${p.brand} ${p.model}` })}
             onUploadingChange={setIsUploading}
+            prefix={`${p.brand} ${p.model}`}
           />
         </Field>
         {cropTarget && (
           <PhotoCropModal
             src={cropTarget.src}
+            prefix={cropTarget.prefix}
             onClose={() => setCropTarget(null)}
             onSave={(cropped) => {
               const next = [...gallery];
@@ -502,7 +504,7 @@ function AccessoriesAdmin({ tr, accs }: { tr: (k: any) => string; accs: Accessor
             <p className="text-sm">{confirm.name} ({confirm.id})</p>
             <div className="flex gap-2">
               <button onClick={() => setConfirm(null)} className="btn-glass flex-1">{tr("cancel")}</button>
-              <button onClick={() => { deleteAccessory(confirm.id); setConfirm(null); }} className="btn-primary flex-1 !bg-accent-red">{tr("delete")}</button>
+              <button onClick={() => { deleteAccessory(confirm); setConfirm(null); }} className="btn-primary flex-1 !bg-accent-red">{tr("delete")}</button>
             </div>
           </div>
         )}
@@ -638,7 +640,7 @@ function AccessoryForm({ tr, initial, onClose, onSave }: {
                     try {
                       const img = await loadImageFromFile(file);
                       const base64 = compressToDataUrl(img);
-                      set("photoUrl", await uploadImageToSupabase(base64, setUploadProgress, abort.signal));
+                      set("photoUrl", await uploadImageToSupabase(base64, setUploadProgress, abort.signal, `${a.brand} ${a.name}`));
                     } catch(err: any) {
                       if (err.message !== "Upload cancelled") {
                         showToast("Upload failed");
@@ -756,11 +758,13 @@ function MultiPhotoUploader({
   onGalleryChange,
   onCropRequest,
   onUploadingChange,
+  prefix,
 }: {
   gallery: string[];
   onGalleryChange: (next: string[]) => void;
   onCropRequest: (index: number, src: string) => void;
   onUploadingChange?: (isUploading: boolean) => void;
+  prefix?: string;
 }) {
   type UploadTask = { id: string; progress: number; abortController: AbortController };
   const [uploads, setUploads] = useState<UploadTask[]>([]);
@@ -797,7 +801,8 @@ function MultiPhotoUploader({
           const url = await uploadImageToSupabase(
             base64,
             (pct) => setUploads(prev => prev.map(t => t.id === task.id ? { ...t, progress: pct } : t)),
-            task.abortController.signal
+            task.abortController.signal,
+            prefix
           );
           successfulUrls.push(url);
         } catch (err: any) {
@@ -936,10 +941,12 @@ function MultiPhotoUploader({
 // ── PhotoCropModal ────────────────────────────────────────────────────────────
 function PhotoCropModal({
   src,
+  prefix,
   onClose,
   onSave,
 }: {
   src: string;
+  prefix?: string;
   onClose: () => void;
   onSave: (cropped: string) => void;
 }) {
@@ -1042,7 +1049,7 @@ function PhotoCropModal({
       setIsUploading(true);
       // Create cropped base64, then upload back to supabase
       const base64 = canvas.toDataURL("image/webp", 0.88);
-      const publicUrl = await uploadImageToSupabase(base64);
+      const publicUrl = await uploadImageToSupabase(base64, undefined, undefined, prefix ? `${prefix}-crop` : undefined);
       // Delete the original image from storage so we don't accumulate duplicates
       if (src.startsWith('http')) {
         await deleteImageFromSupabase(src);

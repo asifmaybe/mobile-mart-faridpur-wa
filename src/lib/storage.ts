@@ -731,8 +731,17 @@ export async function upsertPhone(p: UsedPhone) {
   fire(['phones', 'phones_listed']);
 }
 
-export async function deletePhone(id: string) {
-  await supabase.from('phones').delete().eq('id', id);
+export async function deletePhone(phone: UsedPhone) {
+  // Delete all images from storage first
+  const imageUrls = [
+    phone.photoUrl,
+    ...(phone.galleryUrls ?? []),
+  ].filter((u): u is string => !!u);
+  // Deduplicate (photoUrl is usually galleryUrls[0])
+  const unique = [...new Set(imageUrls)];
+  await Promise.allSettled(unique.map((url) => deleteImageFromSupabase(url)));
+
+  await supabase.from('phones').delete().eq('id', phone.id);
   fire(['phones', 'phones_listed']);
 }
 
@@ -810,8 +819,13 @@ export async function upsertAccessory(a: Accessory) {
   fire(['accessories']);
 }
 
-export async function deleteAccessory(id: string) {
-  await supabase.from('accessories').delete().eq('id', id);
+export async function deleteAccessory(accessory: Accessory) {
+  // Delete the photo from storage first
+  if (accessory.photoUrl) {
+    await deleteImageFromSupabase(accessory.photoUrl);
+  }
+
+  await supabase.from('accessories').delete().eq('id', accessory.id);
   fire(['accessories']);
 }
 
@@ -873,15 +887,28 @@ export async function deleteImageFromSupabase(publicUrl: string): Promise<void> 
 export function uploadImageToSupabase(
   base64: string,
   onProgress?: (pct: number) => void,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  prefix?: string,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     // If it's already a public URL (e.g. they cropped a previously uploaded image), just return it
     if (base64.startsWith('http')) return resolve(base64);
 
     try {
+      // Build a human-readable slug from the prefix (brand + model, etc.)
+      const slug = prefix
+        ? prefix
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 60)
+        : null;
+
       const blob = dataURLtoBlob(base64);
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
+      const rand = Math.random().toString(36).substring(2, 8);
+      const fileName = slug
+        ? `${slug}-${Date.now()}-${rand}.webp`
+        : `${Date.now()}-${rand}.webp`;
       const url = `${supabaseUrl}/storage/v1/object/images/${fileName}`;
 
       const xhr = new XMLHttpRequest();
@@ -889,7 +916,6 @@ export function uploadImageToSupabase(
       xhr.setRequestHeader('Authorization', `Bearer ${supabaseAnonKey}`);
       xhr.setRequestHeader('apikey', supabaseAnonKey);
       xhr.setRequestHeader('Content-Type', 'image/webp');
-      // For Supabase to know it's not upserting
       xhr.setRequestHeader('x-upsert', 'false');
 
       if (abortSignal) {
